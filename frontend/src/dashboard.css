@@ -8,8 +8,22 @@
 }
 
 .banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   background: #acd990;
   padding: 20px 32px;
+}
+
+.logout {
+  font: inherit;
+  font-size: 15px;
+  padding: 6px 12px;
+  border-radius: 6px;
+  color: #112114;
+  background: transparent;
+  border: 1px solid #487853;
+  cursor: pointer;
 }
 
 .banner h1 {

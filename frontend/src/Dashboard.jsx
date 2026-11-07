@@ -1,3 +1,4 @@
+import { useAuth0 } from '@auth0/auth0-react'
 import './dashboard.css'
 
 // DUMMY - delete this object when real data is wired up.
@@ -26,15 +27,28 @@ function greetingFor(date) {
 }
 
 export default function Dashboard() {
+  const { user, logout } = useAuth0()
   const greeting = greetingFor(new Date())
+  const name = user?.given_name || user?.name || 'Elodie'
 
   return (
     <div className="dashboard">
       <header className="banner">
         <h1>Pennies</h1>
+        <button
+          type="button"
+          className="logout"
+          onClick={() =>
+            logout({ logoutParams: { returnTo: window.location.origin } })
+          }
+        >
+          Log out
+        </button>
       </header>
       <main className="dashboard-main">
-        <p className="greeting">{greeting}, Elodie</p>
+        <p className="greeting">
+          {greeting}, {name}
+        </p>
         <div className="tiles">
           <section className="tile">
             <h2>Spent this month</h2>
