@@ -26,7 +26,7 @@ function greetingFor(date) {
   return 'Good evening'
 }
 
-export default function Dashboard() {
+export default function Dashboard({ onViewSpendingHabits }) {
   const { user, logout } = useAuth0()
   const greeting = greetingFor(new Date())
   const name = user?.given_name || user?.name || 'Elodie'
@@ -71,6 +71,16 @@ export default function Dashboard() {
                 </li>
               ))}
             </ul>
+            <a
+              href="#spending-habits"
+              className="habits-link"
+              onClick={(event) => {
+                event.preventDefault()
+                onViewSpendingHabits()
+              }}
+            >
+              View spending habits <span aria-hidden="true">→</span>
+            </a>
           </section>
           <section className="tile">
             <h2>Recent transactions</h2>
