@@ -44,6 +44,11 @@
   color: #112114;
 }
 
+.status {
+  margin: 16px 0 0;
+  color: #112114;
+}
+
 .tiles {
   display: grid;
   grid-template-columns: 1fr 1fr;

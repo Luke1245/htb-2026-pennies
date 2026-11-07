@@ -1,8 +1,10 @@
 from datetime import datetime, timezone
 
+import pytest
 from fastapi.testclient import TestClient
 
 from pennies.api import create_app
+from pennies.settings import Settings
 
 NOW = datetime(2026, 11, 7, 12, tzinfo=timezone.utc)
 
@@ -42,7 +44,7 @@ def test_dashboard_starts_empty():
     assert body["left_to_spend"] == "0.00"
     assert body["monthly_budget"] is None
     assert body["categories"] == []
-    assert body["recent_transactions"] == []
+    assert "recent_transactions" not in body
 
 
 def test_spending_rules_and_london_month():
@@ -239,9 +241,47 @@ def test_records_stay_with_their_user():
     assert hidden.status_code == 200
     assert hidden.json() == []
     stolen = client.get("/transactions")
-    assert stolen.json() == []
+    assert stolen.json()["transactions"] == []
     missing = client.post(
         f"/accounts/{cash['id']}/reconciliations",
         json={"real_balance": "5.00"},
     )
     assert missing.status_code == 404
+
+
+def test_transactions_can_be_read_past_the_first_page():
+    client, _holder = make_client()
+    cash = account(client)
+    for index in range(3):
+        created = client.post(
+            "/transactions",
+            json={
+                "account_id": cash["id"],
+                "amount": f"-{index + 1}.00",
+                "category": "Other",
+                "vendor": f"Shop {index}",
+                "occurred_at": f"2026-11-0{index + 1}T10:00:00+00:00",
+            },
+        )
+        assert created.status_code == 200, created.text
+        assert created.json()["kind"] == "ordinary"
+
+    first = client.get("/transactions?limit=2&offset=0")
+    assert first.status_code == 200, first.text
+    page = first.json()
+    assert len(page["transactions"]) == 2
+    assert page["next_offset"] == 2
+    second = client.get("/transactions?limit=2&offset=2")
+    assert len(second.json()["transactions"]) == 1
+    assert second.json()["next_offset"] is None
+
+
+def test_database_url_must_be_postgres():
+    with pytest.raises(RuntimeError):
+        Settings(database_url="").required_database_url()
+    with pytest.raises(RuntimeError):
+        Settings(database_url="sqlite:///pennies.db").required_database_url()
+    assert (
+        Settings(database_url="postgres://localhost/pennies").required_database_url()
+        == "postgres://localhost/pennies"
+    )

@@ -1,23 +1,8 @@
+import { useEffect, useState } from 'react'
 import { useAuth0 } from '@auth0/auth0-react'
 import './dashboard.css'
 
-// DUMMY - delete this object when real data is wired up.
-const dummy = {
-  spentThisMonth: '£642',
-  leftToSpend: '£358',
-  transactions: [
-    { merchant: 'Tesco', when: 'Today', amount: '-£18.40' },
-    { merchant: 'Lothian Buses', when: 'Yesterday', amount: '-£2.00' },
-    { merchant: 'Salary', when: 'Mon', amount: '+£1,850' },
-    { merchant: 'Cafe', when: 'Mon', amount: '-£4.60' },
-  ],
-  categories: [
-    { name: 'Groceries', amount: '£186', share: 72 },
-    { name: 'Bills', amount: '£210', share: 80 },
-    { name: 'Eating out', amount: '£91', share: 40 },
-    { name: 'Transport', amount: '£64', share: 28 },
-  ],
-}
+const apiUrl = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000'
 
 function greetingFor(date) {
   const hour = date.getHours()
@@ -26,10 +11,74 @@ function greetingFor(date) {
   return 'Good evening'
 }
 
+function pounds(value) {
+  const amount = Number(value)
+  const text = `£${Math.abs(amount).toFixed(2)}`
+  return amount < 0 ? `-${text}` : text
+}
+
+function signedPounds(value) {
+  const amount = Number(value)
+  const text = pounds(Math.abs(amount))
+  if (amount < 0) return `-${text}`
+  if (amount > 0) return `+${text}`
+  return text
+}
+
+function whenLabel(occurredAt) {
+  return new Intl.DateTimeFormat('en-GB', {
+    timeZone: 'Europe/London',
+    day: 'numeric',
+    month: 'short',
+  }).format(new Date(occurredAt))
+}
+
 export default function Dashboard() {
-  const { user, logout } = useAuth0()
+  const { user, logout, getAccessTokenSilently } = useAuth0()
   const greeting = greetingFor(new Date())
   const name = user?.given_name || user?.name || 'Elodie'
+  const [figures, setFigures] = useState(null)
+  const [transactions, setTransactions] = useState([])
+  const [error, setError] = useState('')
+
+  useEffect(() => {
+    let cancelled = false
+
+    async function load() {
+      try {
+        const audience = import.meta.env.VITE_AUTH0_AUDIENCE
+        const token = await getAccessTokenSilently({
+          authorizationParams: audience ? { audience } : undefined,
+        })
+        const headers = { Authorization: `Bearer ${token}` }
+        const [dashboardResponse, transactionResponse] = await Promise.all([
+          fetch(`${apiUrl}/dashboard`, { headers }),
+          fetch(`${apiUrl}/transactions?limit=20`, { headers }),
+        ])
+        if (!dashboardResponse.ok || !transactionResponse.ok) {
+          throw new Error('Pennies could not load your records')
+        }
+        const dashboard = await dashboardResponse.json()
+        const page = await transactionResponse.json()
+        if (!cancelled) {
+          setFigures(dashboard)
+          setTransactions(page.transactions)
+        }
+      } catch {
+        if (!cancelled) setError('Pennies could not load your records')
+      }
+    }
+
+    load()
+    return () => {
+      cancelled = true
+    }
+  }, [getAccessTokenSilently])
+
+  const largest = figures?.categories.reduce(
+    (highest, category) => Math.max(highest, Number(category.amount)),
+    0,
+  )
 
   return (
     <div className="dashboard">
@@ -49,44 +98,60 @@ export default function Dashboard() {
         <p className="greeting">
           {greeting}, {name}
         </p>
-        <div className="tiles">
-          <section className="tile">
-            <h2>Spent this month</h2>
-            <p className="stat">{dummy.spentThisMonth}</p>
-          </section>
-          <section className="tile">
-            <h2>Left to spend</h2>
-            <p className="stat">{dummy.leftToSpend}</p>
-          </section>
-          <section className="tile">
-            <h2>Spending insights</h2>
-            <ul className="bars">
-              {dummy.categories.map((category) => (
-                <li key={category.name}>
-                  <span>{category.name}</span>
-                  <span className="bar" aria-hidden="true">
-                    <span style={{ width: `${category.share}%` }} />
-                  </span>
-                  <span>{category.amount}</span>
-                </li>
-              ))}
-            </ul>
-          </section>
-          <section className="tile">
-            <h2>Recent transactions</h2>
-            <ul className="transactions">
-              {dummy.transactions.map((transaction) => (
-                <li key={transaction.merchant}>
-                  <span>
-                    {transaction.merchant}
-                    <small>{transaction.when}</small>
-                  </span>
-                  <span>{transaction.amount}</span>
-                </li>
-              ))}
-            </ul>
-          </section>
-        </div>
+        {error && <p className="status">{error}</p>}
+        {!error && !figures && <p className="status">Loading…</p>}
+        {figures && (
+          <div className="tiles">
+            <section className="tile">
+              <h2>Spent this month</h2>
+              <p className="stat">{pounds(figures.spent_this_month)}</p>
+            </section>
+            <section className="tile">
+              <h2>Left to spend</h2>
+              <p className="stat">{pounds(figures.left_to_spend)}</p>
+            </section>
+            <section className="tile">
+              <h2>Spending insights</h2>
+              {figures.categories.length === 0 ? (
+                <p className="status">No spending this month</p>
+              ) : (
+                <ul className="bars">
+                  {figures.categories.map((category) => (
+                    <li key={category.name}>
+                      <span>{category.name}</span>
+                      <span className="bar" aria-hidden="true">
+                        <span
+                          style={{
+                            width: `${largest ? (Number(category.amount) / largest) * 100 : 0}%`,
+                          }}
+                        />
+                      </span>
+                      <span>{pounds(category.amount)}</span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </section>
+            <section className="tile">
+              <h2>Recent transactions</h2>
+              {transactions.length === 0 ? (
+                <p className="status">No transactions yet</p>
+              ) : (
+                <ul className="transactions">
+                  {transactions.map((transaction) => (
+                    <li key={transaction.id}>
+                      <span>
+                        {transaction.vendor || transaction.category}
+                        <small>{whenLabel(transaction.occurred_at)}</small>
+                      </span>
+                      <span>{signedPounds(transaction.amount)}</span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </section>
+          </div>
+        )}
       </main>
     </div>
   )

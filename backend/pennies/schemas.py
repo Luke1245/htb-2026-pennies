@@ -117,9 +117,13 @@ class CategoryTotal(ApiModel):
     amount: Money
 
 
+class TransactionPage(ApiModel):
+    transactions: list[TransactionOut]
+    next_offset: int | None
+
+
 class DashboardOut(ApiModel):
     spent_this_month: Money
     left_to_spend: Money
     monthly_budget: Money | None
     categories: list[CategoryTotal]
-    recent_transactions: list[TransactionOut]
