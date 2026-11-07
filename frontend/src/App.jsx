@@ -1,11 +1,7 @@
-import './App.css'
+import Dashboard from './dashboard.jsx'
 
 function App() {
-  return (
-    <main>
-      <h1>Hello, World!</h1>
-    </main>
-  )
+  return <Dashboard />
 }
 
 export default App

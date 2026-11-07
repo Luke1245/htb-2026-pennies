@@ -1,0 +1,31 @@
+.dashboard {
+  min-height: 100svh;
+  width: 100%;
+  background: #fff;
+  color: #112114;
+  text-align: left;
+  font-family: system-ui, 'Segoe UI', Roboto, sans-serif;
+}
+
+.banner {
+  background: #acd990;
+  padding: 20px 32px;
+}
+
+.banner h1 {
+  margin: 0;
+  font-size: 28px;
+  font-weight: 600;
+  letter-spacing: 0;
+  color: #112114;
+}
+
+.dashboard-main {
+  padding: 32px;
+}
+
+.greeting {
+  margin: 0;
+  font-size: 22px;
+  color: #112114;
+}
