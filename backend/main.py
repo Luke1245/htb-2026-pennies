@@ -1,13 +1,3 @@
-from fastapi import FastAPI
+from pennies.api import create_app
 
-app = FastAPI()
-
-
-@app.get("/")
-def read_root():
-    return {"message": "Hello World"}
-
-
-@app.get("/health")
-def health():
-    return {"status": "ok"}
+app = create_app()
