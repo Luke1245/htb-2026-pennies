@@ -1,6 +1,6 @@
 import { useAuth0 } from '@auth0/auth0-react'
 import './App.css'
-import Dashboard from './dashboard.jsx'
+import Dashboard from './Dashboard.jsx'
 
 function App() {
   const { isLoading, isAuthenticated, error, loginWithRedirect } = useAuth0()
