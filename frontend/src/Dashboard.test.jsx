@@ -12,7 +12,24 @@ function renderDashboard() {
   useAuth0.mockReturnValue({
     user: { given_name: 'Elodie' },
     logout: vi.fn(),
+    getAccessTokenSilently: vi.fn().mockResolvedValue('test-token'),
   })
+  vi.stubGlobal(
+    'fetch',
+    vi.fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          spent_this_month: '10.00',
+          left_to_spend: '20.00',
+          categories: [],
+        }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ transactions: [] }),
+      }),
+  )
 
   return render(<Dashboard />)
 }
@@ -56,7 +73,7 @@ test('user can open the budgeting guide and return to the dashboard', async () =
 
   await user.click(screen.getByRole('button', { name: /back to dashboard/i }))
 
-  expect(screen.getByText('Spent this month')).toBeInTheDocument()
+  expect(await screen.findByText('Spent this month')).toBeInTheDocument()
   expect(
     screen.getByRole('heading', { name: 'Guides' }),
   ).toBeInTheDocument()
