@@ -1,0 +1,3 @@
+# Automatic AI with explicit data-sharing modes
+
+Pennies automatically uses Gemini for categorisation, Spending habits, Education, and Suggestions because low-friction personalised financial literacy is the product's core differentiator. Raw mode defaults to full-history transaction details plus Account names and balances, while Sanitised mode withholds Vendor/Payee, Notes, exact Dates, and Account names; changing modes discards prior AI output and regenerates it under the new policy. This deliberately trades some Sanitised-mode accuracy for enforceable privacy while retaining complete private records in Pennies' own database.
