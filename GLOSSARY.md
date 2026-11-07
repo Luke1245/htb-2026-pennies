@@ -46,8 +46,12 @@ A classification from Pennies' predefined list, assigned to every Transaction by
 **Spending habit**:
 An AI-generated summary of a pattern in a user's historical spending behaviour.
 
+**Guide**:
+A short, curated financial-literacy article based on trusted sources, without AI generation or personalisation.
+_Avoid_: Education guide, basic advice
+
 **Education**:
-AI-generated financial-learning content that explains a concept relevant to the user's situation; general financial-literacy content is used only when no transaction history exists.
+AI-generated financial-learning content that explains a concept relevant to the user's situation.
 
 **Suggestion**:
 A personalised educational action generated automatically by AI as the user uses Pennies, based on their full transaction history filtered through their chosen sharing mode and focused primarily on current-month patterns.

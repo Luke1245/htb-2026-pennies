@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react'
 import { useAuth0 } from '@auth0/auth0-react'
 import './dashboard.css'
+import { GuideCards, GuideView } from './Guides.jsx'
+import { guides } from './guides.js'
 
 const apiUrl = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000'
 
@@ -35,6 +37,7 @@ function whenLabel(occurredAt) {
 
 export default function Dashboard() {
   const { user, logout, getAccessTokenSilently } = useAuth0()
+  const [selectedGuide, setSelectedGuide] = useState(null)
   const greeting = greetingFor(new Date())
   const name = user?.given_name || user?.name || 'Elodie'
   const [figures, setFigures] = useState(null)
@@ -95,62 +98,69 @@ export default function Dashboard() {
         </button>
       </header>
       <main className="dashboard-main">
-        <p className="greeting">
-          {greeting}, {name}
-        </p>
-        {error && <p className="status">{error}</p>}
-        {!error && !figures && <p className="status">Loading…</p>}
-        {figures && (
-          <div className="tiles">
-            <section className="tile">
-              <h2>Spent this month</h2>
-              <p className="stat">{pounds(figures.spent_this_month)}</p>
-            </section>
-            <section className="tile">
-              <h2>Left to spend</h2>
-              <p className="stat">{pounds(figures.left_to_spend)}</p>
-            </section>
-            <section className="tile">
-              <h2>Spending insights</h2>
-              {figures.categories.length === 0 ? (
-                <p className="status">No spending this month</p>
-              ) : (
-                <ul className="bars">
-                  {figures.categories.map((category) => (
-                    <li key={category.name}>
-                      <span>{category.name}</span>
-                      <span className="bar" aria-hidden="true">
-                        <span
-                          style={{
-                            width: `${largest ? (Number(category.amount) / largest) * 100 : 0}%`,
-                          }}
-                        />
-                      </span>
-                      <span>{pounds(category.amount)}</span>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </section>
-            <section className="tile">
-              <h2>Recent transactions</h2>
-              {transactions.length === 0 ? (
-                <p className="status">No transactions yet</p>
-              ) : (
-                <ul className="transactions">
-                  {transactions.map((transaction) => (
-                    <li key={transaction.id}>
-                      <span>
-                        {transaction.vendor || transaction.category}
-                        <small>{whenLabel(transaction.occurred_at)}</small>
-                      </span>
-                      <span>{signedPounds(transaction.amount)}</span>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </section>
-          </div>
+        {selectedGuide ? (
+          <GuideView guide={selectedGuide} onBack={() => setSelectedGuide(null)} />
+        ) : (
+          <>
+            <p className="greeting">
+              {greeting}, {name}
+            </p>
+            {error && <p className="status">{error}</p>}
+            {!error && !figures && <p className="status">Loading…</p>}
+            {figures && (
+              <div className="tiles">
+                <section className="tile">
+                  <h2>Spent this month</h2>
+                  <p className="stat">{pounds(figures.spent_this_month)}</p>
+                </section>
+                <section className="tile">
+                  <h2>Left to spend</h2>
+                  <p className="stat">{pounds(figures.left_to_spend)}</p>
+                </section>
+                <section className="tile">
+                  <h2>Spending insights</h2>
+                  {figures.categories.length === 0 ? (
+                    <p className="status">No spending this month</p>
+                  ) : (
+                    <ul className="bars">
+                      {figures.categories.map((category) => (
+                        <li key={category.name}>
+                          <span>{category.name}</span>
+                          <span className="bar" aria-hidden="true">
+                            <span
+                              style={{
+                                width: `${largest ? (Number(category.amount) / largest) * 100 : 0}%`,
+                              }}
+                            />
+                          </span>
+                          <span>{pounds(category.amount)}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </section>
+                <section className="tile">
+                  <h2>Recent transactions</h2>
+                  {transactions.length === 0 ? (
+                    <p className="status">No transactions yet</p>
+                  ) : (
+                    <ul className="transactions">
+                      {transactions.map((transaction) => (
+                        <li key={transaction.id}>
+                          <span>
+                            {transaction.vendor || transaction.category}
+                            <small>{whenLabel(transaction.occurred_at)}</small>
+                          </span>
+                          <span>{signedPounds(transaction.amount)}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </section>
+              </div>
+            )}
+            <GuideCards guides={guides} onSelect={setSelectedGuide} />
+          </>
         )}
       </main>
     </div>
