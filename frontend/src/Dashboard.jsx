@@ -1,5 +1,8 @@
+import { useState } from 'react'
 import { useAuth0 } from '@auth0/auth0-react'
 import './dashboard.css'
+import { GuideCards, GuideView } from './Guides.jsx'
+import { guides } from './guides.js'
 
 // DUMMY - delete this object when real data is wired up.
 const dummy = {
@@ -28,6 +31,7 @@ function greetingFor(date) {
 
 export default function Dashboard() {
   const { user, logout } = useAuth0()
+  const [selectedGuide, setSelectedGuide] = useState(null)
   const greeting = greetingFor(new Date())
   const name = user?.given_name || user?.name || 'Elodie'
 
@@ -46,7 +50,11 @@ export default function Dashboard() {
         </button>
       </header>
       <main className="dashboard-main">
-        <p className="greeting">
+        {selectedGuide ? (
+          <GuideView guide={selectedGuide} onBack={() => setSelectedGuide(null)} />
+        ) : (
+          <>
+            <p className="greeting">
           {greeting}, {name}
         </p>
         <div className="tiles">
@@ -87,6 +95,9 @@ export default function Dashboard() {
             </ul>
           </section>
         </div>
+            <GuideCards guides={guides} onSelect={setSelectedGuide} />
+          </>
+        )}
       </main>
     </div>
   )
