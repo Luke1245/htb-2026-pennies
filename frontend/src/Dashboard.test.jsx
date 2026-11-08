@@ -289,3 +289,69 @@ test('Cancel closes the form without recording', async () => {
   await user.click(screen.getByRole('button', { name: 'Add transaction' }))
   expect(screen.getByLabelText('Vendor')).toHaveValue('')
 })
+
+async function expectBackOnDashboard(guideTitle) {
+  expect(
+    await screen.findByRole('heading', { name: 'Guides' }),
+  ).toBeInTheDocument()
+  expect(
+    screen.queryByRole('heading', { name: guideTitle, level: 1 }),
+  ).not.toBeInTheDocument()
+}
+
+test('pressing browser back button while viewing a guide returns to dashboard', async () => {
+  const user = userEvent.setup()
+  renderDashboard()
+
+  await user.click(screen.getByRole('button', { name: /budgeting basics/i }))
+  expect(
+    screen.getByRole('heading', { name: 'Budgeting basics', level: 1 }),
+  ).toBeInTheDocument()
+  expect(window.location.hash).toBe('#guide/budgeting-basics')
+
+  // Browser Back steps off the pushed guide entry onto the dashboard entry
+  window.location.hash = ''
+  window.dispatchEvent(new PopStateEvent('popstate'))
+
+  await expectBackOnDashboard('Budgeting basics')
+})
+
+test('clicking Back to dashboard closes the guide and clears the URL', async () => {
+  const user = userEvent.setup()
+  renderDashboard()
+
+  await user.click(screen.getByRole('button', { name: /budgeting basics/i }))
+  expect(
+    screen.getByRole('heading', { name: 'Budgeting basics', level: 1 }),
+  ).toBeInTheDocument()
+
+  await user.click(screen.getByRole('button', { name: /back to dashboard/i }))
+
+  await expectBackOnDashboard('Budgeting basics')
+  expect(window.location.hash).toBe('')
+})
+
+test('guide opened directly from its URL closes to the dashboard, not away from the app', async () => {
+  const user = userEvent.setup()
+  window.location.hash = '#guide/scam-avoidance'
+  renderDashboard()
+
+  expect(
+    await screen.findByRole('heading', { name: 'Scam avoidance', level: 1 }),
+  ).toBeInTheDocument()
+
+  await user.click(screen.getByRole('button', { name: /back to dashboard/i }))
+
+  await expectBackOnDashboard('Scam avoidance')
+  expect(window.location.hash).toBe('')
+})
+
+test('an external hash change opens the matching guide', async () => {
+  renderDashboard()
+
+  window.location.hash = 'guide/investing-basics'
+
+  expect(
+    await screen.findByRole('heading', { name: 'Investing basics', level: 1 }),
+  ).toBeInTheDocument()
+})
