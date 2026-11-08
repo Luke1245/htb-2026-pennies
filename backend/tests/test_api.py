@@ -323,6 +323,67 @@ def test_renaming_a_category_does_not_change_recorded_transactions():
     assert client.get("/transactions").json()["transactions"][0]["category"] == "Groceries"
 
 
+def test_deleting_a_transaction_restores_the_balance():
+    from tests.test_reading import FakeReader
+
+    client, holder = make_client(reader=FakeReader())
+    cash = account(client, "Cash", "40.00")
+    recorded = client.post(
+        "/transactions",
+        json={
+            "account_id": cash["id"],
+            "amount": "-6.00",
+            "vendor": "Tesco",
+            "occurred_at": "2026-11-02T10:00:00+00:00",
+        },
+    )
+    assert recorded.status_code == 200, recorded.text
+    transaction_id = recorded.json()["id"]
+
+    holder["sub"] = "user-b"
+    hidden = client.delete(f"/transactions/{transaction_id}")
+    assert hidden.status_code == 404
+
+    holder["sub"] = "user-a"
+    removed = client.delete(f"/transactions/{transaction_id}")
+    assert removed.status_code == 200, removed.text
+    assert removed.json()["deleted"] is True
+    assert removed.json()["ids"] == [transaction_id]
+    assert client.get("/transactions").json()["transactions"] == []
+    assert client.get("/accounts").json()[0]["calculated_balance"] == "40.00"
+    dashboard = client.get("/dashboard").json()
+    assert dashboard["spent_this_month"] == "0.00"
+    assert dashboard["left_to_spend"] == "40.00"
+
+    missing = client.delete(f"/transactions/{transaction_id}")
+    assert missing.status_code == 404
+
+
+def test_deleting_a_transfer_removes_both_sides():
+    client, _holder = make_client()
+    cash = account(client, "Cash", "20.00")
+    bank = account(client, "Bank", "0.00")
+    transfer = client.post(
+        "/transfers",
+        json={
+            "from_account_id": cash["id"],
+            "to_account_id": bank["id"],
+            "amount": "20.00",
+            "occurred_at": "2026-11-03T12:00:00+00:00",
+        },
+    )
+    assert transfer.status_code == 200, transfer.text
+    removed = client.delete(f"/transactions/{transfer.json()['outflow']['id']}")
+    assert removed.status_code == 200, removed.text
+    removed_ids = set(removed.json()["ids"])
+    assert transfer.json()["outflow"]["id"] in removed_ids
+    assert transfer.json()["inflow"]["id"] in removed_ids
+    assert client.get("/transactions").json()["transactions"] == []
+    balances = {item["name"]: item["calculated_balance"] for item in client.get("/accounts").json()}
+    assert balances["Cash"] == "20.00"
+    assert balances["Bank"] == "0.00"
+
+
 def test_an_account_name_and_opening_balance_can_be_edited():
     from tests.test_reading import FakeReader
 

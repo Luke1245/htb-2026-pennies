@@ -54,6 +54,7 @@ export default function Dashboard() {
   const [accountFormOpen, setAccountFormOpen] = useState(false)
   const [reloadKey, setReloadKey] = useState(0)
   const [recommendedGuideIds, setRecommendedGuideIds] = useState([])
+  const [deletingId, setDeletingId] = useState('')
   const recorded = useRef(false)
 
   useEffect(() => {
@@ -64,7 +65,7 @@ export default function Dashboard() {
       const headers = await authHeaders(getAccessTokenSilently)
       const [dashboardResponse, transactionResponse] = await Promise.all([
         fetch(`${apiUrl}/dashboard`, { headers }),
-        fetch(`${apiUrl}/transactions?limit=20`, { headers }),
+        fetch(`${apiUrl}/transactions?limit=3`, { headers }),
       ])
       if (!dashboardResponse.ok || !transactionResponse.ok) {
         throw new Error(loadMessage)
@@ -115,6 +116,28 @@ export default function Dashboard() {
 
   function closeAccountForm() {
     setAccountFormOpen(false)
+  }
+
+  async function removeTransaction(transaction) {
+    setDeletingId(transaction.id)
+    setStatus('')
+    try {
+      const headers = await authHeaders(getAccessTokenSilently)
+      const response = await fetch(`${apiUrl}/transactions/${transaction.id}`, {
+        method: 'DELETE',
+        headers,
+      })
+      if (!response.ok) throw new Error('Pennies could not delete this transaction')
+      const body = await response.json()
+      const removed = new Set(body.ids || [transaction.id])
+      setTransactions((current) => current.filter((item) => !removed.has(item.id)))
+      setReloadKey((key) => key + 1)
+      window.dispatchEvent(new Event('pennies:transactions-changed'))
+    } catch {
+      setStatus('Pennies could not delete this transaction')
+    } finally {
+      setDeletingId('')
+    }
   }
 
   function handleAccountRecorded() {
@@ -273,7 +296,7 @@ export default function Dashboard() {
                     <p className="status">No transactions yet</p>
                   ) : (
                     <ul className="transactions">
-                      {transactions.map((transaction) => (
+                      {transactions.slice(0, 3).map((transaction) => (
                         <li key={transaction.id}>
                           <span>
                             {transaction.vendor || transaction.category}
@@ -283,10 +306,22 @@ export default function Dashboard() {
                             </small>
                           </span>
                           <span>{signedPounds(transaction.amount)}</span>
+                          <button
+                            type="button"
+                            className="delete-transaction"
+                            aria-label={`Delete ${transaction.vendor || transaction.category}`}
+                            disabled={deletingId === transaction.id}
+                            onClick={() => removeTransaction(transaction)}
+                          >
+                            Delete
+                          </button>
                         </li>
                       ))}
                     </ul>
                   )}
+                  <Link to="/transactions" className="habits-link">
+                    View all transactions <span aria-hidden="true">→</span>
+                  </Link>
                 </section>
               </div>
             )}

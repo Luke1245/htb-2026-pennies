@@ -7,6 +7,7 @@ import Dashboard from './Dashboard.jsx'
 import { GuidePage } from './Guides.jsx'
 import RecommendationsPage from './RecommendationsPage.jsx'
 import SpendingHabitsPage from './SpendingHabitsPage.jsx'
+import TransactionsPage from './TransactionsPage.jsx'
 
 function PenniesShell({ children }) {
   return (
@@ -47,6 +48,7 @@ function AuthedScreens() {
     <Routes>
       <Route path="/" element={<Dashboard />} />
       <Route path="/accounts" element={<AccountsPage />} />
+      <Route path="/transactions" element={<TransactionsPage />} />
       <Route path="/spending-habits" element={<SpendingHabitsScreen />} />
       <Route path="/recommendations" element={<RecommendationsScreen />} />
       <Route path="/guides/:guideId" element={<GuidePage />} />

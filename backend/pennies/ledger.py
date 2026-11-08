@@ -136,6 +136,28 @@ def list_transactions(
     return page, next_offset
 
 
+def delete_transaction(db: Session, user_sub: str, transaction_id: uuid.UUID) -> list[uuid.UUID]:
+    transaction = db.get(Transaction, transaction_id)
+    if transaction is None or transaction.user_sub != user_sub:
+        raise DomainError("Transaction not found", status_code=404)
+    if transaction.kind is TransactionKind.transfer and transaction.transfer_id is not None:
+        rows = list(
+            db.scalars(
+                select(Transaction).where(
+                    Transaction.user_sub == user_sub,
+                    Transaction.transfer_id == transaction.transfer_id,
+                )
+            ).all()
+        )
+    else:
+        rows = [transaction]
+    removed = [row.id for row in rows]
+    for row in rows:
+        db.delete(row)
+    db.flush()
+    return removed
+
+
 def update_category(
     db: Session, user_sub: str, transaction_id: uuid.UUID, category: str
 ) -> Transaction:
