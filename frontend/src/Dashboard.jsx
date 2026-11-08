@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useAuth0 } from '@auth0/auth0-react'
 import './dashboard.css'
 import { GuideCards, GuideView } from './Guides.jsx'
+import { useGuideRoute } from './useGuideRoute.js'
 import { guides } from './guides.js'
 
 const apiUrl = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000'
@@ -37,7 +38,7 @@ function whenLabel(occurredAt) {
 
 export default function Dashboard() {
   const { user, logout, getAccessTokenSilently } = useAuth0()
-  const [selectedGuide, setSelectedGuide] = useState(null)
+  const { selectedGuide, openGuide, closeGuide } = useGuideRoute()
   const greeting = greetingFor(new Date())
   const name = user?.given_name || user?.name || 'Elodie'
   const [figures, setFigures] = useState(null)
@@ -99,7 +100,7 @@ export default function Dashboard() {
       </header>
       <main className="dashboard-main">
         {selectedGuide ? (
-          <GuideView guide={selectedGuide} onBack={() => setSelectedGuide(null)} />
+          <GuideView guide={selectedGuide} onBack={closeGuide} />
         ) : (
           <>
             <p className="greeting">
@@ -159,7 +160,7 @@ export default function Dashboard() {
                 </section>
               </div>
             )}
-            <GuideCards guides={guides} onSelect={setSelectedGuide} />
+            <GuideCards guides={guides} onSelect={openGuide} />
           </>
         )}
       </main>
