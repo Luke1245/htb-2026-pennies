@@ -1,10 +1,11 @@
-import { useState } from 'react'
 import { useAuth0 } from '@auth0/auth0-react'
+import { BrowserRouter, Navigate, Route, Routes, useNavigate } from 'react-router'
 import './dashboard.css'
 import './App.css'
 import Dashboard from './Dashboard.jsx'
-import SpendingHabitsPage from './SpendingHabitsPage.jsx'
+import { GuidePage } from './Guides.jsx'
 import RecommendationsPage from './RecommendationsPage.jsx'
+import SpendingHabitsPage from './SpendingHabitsPage.jsx'
 
 function PenniesShell({ children }) {
   return (
@@ -17,33 +18,60 @@ function PenniesShell({ children }) {
   )
 }
 
-function App() {
-  const { isLoading, isAuthenticated, error, loginWithRedirect, logout } = useAuth0()
-  const [page, setPage] = useState('dashboard')
-  const [hasOpenedHabits, setHasOpenedHabits] = useState(false)
-  const [hasOpenedRecommendations, setHasOpenedRecommendations] = useState(false)
+function SpendingHabitsScreen() {
+  const navigate = useNavigate()
+  const { logout } = useAuth0()
+  return (
+    <SpendingHabitsPage
+      onBack={() => navigate('/')}
+      onLogout={() => logout({ logoutParams: { returnTo: window.location.origin } })}
+    />
+  )
+}
 
+function RecommendationsScreen() {
+  const navigate = useNavigate()
+  const { logout } = useAuth0()
+  return (
+    <RecommendationsPage
+      onBack={() => navigate('/')}
+      onOpenGuide={(guide) => navigate(`/guides/${guide.id}`)}
+      onLogout={() => logout({ logoutParams: { returnTo: window.location.origin } })}
+    />
+  )
+}
+
+function AuthedScreens() {
+  return (
+    <Routes>
+      <Route path="/" element={<Dashboard />} />
+      <Route path="/spending-habits" element={<SpendingHabitsScreen />} />
+      <Route path="/recommendations" element={<RecommendationsScreen />} />
+      <Route path="/guides/:guideId" element={<GuidePage />} />
+      <Route path="*" element={<Navigate to="/" replace />} />
+    </Routes>
+  )
+}
+
+function App() {
+  const { isLoading, isAuthenticated, error, loginWithRedirect } = useAuth0()
+
+  let screen
   if (isLoading) {
-    return (
+    screen = (
       <PenniesShell>
         <p className="status">Loading…</p>
       </PenniesShell>
     )
-  }
-
-  if (!isAuthenticated) {
-    return (
+  } else if (!isAuthenticated) {
+    screen = (
       <PenniesShell>
         <section className="auth-panel">
           <h2>Welcome</h2>
           <p>Log in or create an account to see your spending.</p>
           {error && <p className="status">Error: {error.message}</p>}
           <div className="auth-actions">
-            <button
-              type="button"
-              className="primary"
-              onClick={() => loginWithRedirect()}
-            >
+            <button type="button" className="primary" onClick={() => loginWithRedirect()}>
               Log in
             </button>
             <button
@@ -61,49 +89,11 @@ function App() {
         </section>
       </PenniesShell>
     )
+  } else {
+    screen = <AuthedScreens />
   }
 
-  const openHabits = () => {
-    setHasOpenedHabits(true)
-    setPage('spending-habits')
-  }
-
-  const openRecommendations = () => {
-    setHasOpenedRecommendations(true)
-    setPage('recommendations')
-  }
-
-  const openGuideFromRecommendations = (guide) => {
-    window.location.hash = `#guide/${guide.id}`
-    setPage('dashboard')
-  }
-
-  return (
-    <>
-      <div hidden={page !== 'dashboard'}>
-        <Dashboard onViewSpendingHabits={openHabits} onViewRecommendations={openRecommendations} />
-      </div>
-      {hasOpenedHabits && (
-        <div hidden={page !== 'spending-habits'}>
-          <SpendingHabitsPage
-            isActive={page === 'spending-habits'}
-            onBack={() => setPage('dashboard')}
-            onLogout={() => logout({ logoutParams: { returnTo: window.location.origin } })}
-          />
-        </div>
-      )}
-      {hasOpenedRecommendations && (
-        <div hidden={page !== 'recommendations'}>
-          <RecommendationsPage
-            isActive={page === 'recommendations'}
-            onBack={() => setPage('dashboard')}
-            onOpenGuide={openGuideFromRecommendations}
-            onLogout={() => logout({ logoutParams: { returnTo: window.location.origin } })}
-          />
-        </div>
-      )}
-    </>
-  )
+  return <BrowserRouter>{screen}</BrowserRouter>
 }
 
 export default App

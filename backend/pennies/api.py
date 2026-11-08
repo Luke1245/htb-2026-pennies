@@ -311,8 +311,16 @@ def create_app(database_url: str | None = None, clock=None, reader=None) -> Fast
         return {"mode": set_sharing_mode(db, user_sub, body.mode)}
 
     @app.get("/reading", response_model=ReadingOut)
-    def get_reading(db=Depends(get_db), user_sub: str = Depends(get_current_user)):
-        return {"sharing_mode": sharing_mode(db, user_sub), "updated": False, "reading": current_reading(db, user_sub)}
+    def get_reading(
+        request: Request,
+        db=Depends(get_db),
+        user_sub: str = Depends(get_current_user),
+    ):
+        return {
+            "sharing_mode": sharing_mode(db, user_sub),
+            "updated": False,
+            "reading": current_reading(db, user_sub, request.app.state.clock()),
+        }
 
     @app.post("/reading", response_model=ReadingOut)
     def post_reading(

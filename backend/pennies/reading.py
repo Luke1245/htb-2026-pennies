@@ -1,3 +1,4 @@
+import uuid
 from dataclasses import dataclass
 from datetime import datetime
 
@@ -119,19 +120,61 @@ def build_reading(db: Session, user_sub: str, now: datetime, reader) -> tuple[di
     except Exception:
         draft = None
     if draft is None:
-        return _portrait_out(db, user_sub), False
+        stored = _portrait_out(db, user_sub)
+        if stored is not None:
+            return stored, False
+        return _ledger_reading(db, user_sub, now), False
     stored = _store_portrait(db, user_sub, mode, draft)
     if stored is None:
         return _portrait_out(db, user_sub), False
     return _portrait_out(db, user_sub), True
 
 
-def current_reading(db: Session, user_sub: str) -> dict | None:
+def current_reading(db: Session, user_sub: str, now: datetime) -> dict | None:
     mode = sharing_mode(db, user_sub)
     portrait = db.scalar(select(Portrait).where(Portrait.user_sub == user_sub))
-    if portrait is None or portrait.sharing_mode != mode:
+    if portrait is not None and portrait.sharing_mode == mode:
+        return _portrait_out(db, user_sub)
+    return _ledger_reading(db, user_sub, now)
+
+
+def _ledger_reading(db: Session, user_sub: str, now: datetime) -> dict | None:
+    figures = dashboard(db, user_sub, now)
+    parts = [(category["name"], category["amount"]) for category in figures["categories"]]
+    if figures["subscriptions"] > 0:
+        parts.append(("Subscriptions", figures["subscriptions"]))
+    parts.sort(key=lambda item: item[1], reverse=True)
+    if not parts:
         return None
-    return _portrait_out(db, user_sub)
+    sentences = [f"£{money_str(amount)} went to {name} this month." for name, amount in parts[:2]]
+    subject = parts[0][0]
+    education_id = uuid.uuid4()
+    return {
+        "reading": " ".join(sentences),
+        "spending_habits": [
+            f"£{money_str(amount)} went to {name} this month." for name, amount in parts[:3]
+        ],
+        "projected_habits": [],
+        "educations": [
+            {
+                "id": education_id,
+                "subject": subject,
+                "guide_id": None,
+                "body": (
+                    f"{subject} is where the money went. "
+                    "That is the number to keep an eye on for the rest of the month."
+                ),
+            }
+        ],
+        "suggestions": [
+            {
+                "id": uuid.uuid4(),
+                "education_id": education_id,
+                "body": f"Decide what {subject} should cost before the month ends.",
+            }
+        ],
+        "recommendations": [],
+    }
 
 
 def transaction_facts(vendor: str, amount, note: str | None, occurred_at: datetime) -> dict:

@@ -171,7 +171,10 @@ def test_subscriptions_count_as_spending_and_sanitised_reading_hides_names():
 
     switched = client.put("/sharing-mode", json={"mode": "sanitised"})
     assert switched.json()["mode"] == "sanitised"
-    assert client.get("/reading").json()["reading"] is None
+    fallback = client.get("/reading").json()["reading"]
+    assert "Tesco" not in fallback["reading"]
+    assert "Music" not in fallback["reading"]
+    assert "Groceries" in fallback["reading"]
     client.post("/reading")
     quiet = reader.payloads[-1]
     assert quiet["sharing_mode"] == "sanitised"
@@ -179,6 +182,34 @@ def test_subscriptions_count_as_spending_and_sanitised_reading_hides_names():
     assert "name" not in quiet["subscriptions"][0]
     assert "name" not in quiet["accounts"][0]
     assert quiet["accounts"][0]["calculated_balance"]
+
+
+def test_one_transaction_has_a_spending_insight_before_gemini_writes_one():
+    reader = FakeReader()
+    client, _holder = make_client(reader=reader)
+    cash = account(client)
+    created = client.post(
+        "/transactions",
+        json={
+            "account_id": cash["id"],
+            "amount": "-6.00",
+            "vendor": "Tesco",
+            "occurred_at": "2026-11-02T10:00:00+00:00",
+        },
+    )
+    assert created.status_code == 200, created.text
+
+    reading = client.get("/reading").json()["reading"]
+    assert reader.payloads == []
+    assert reading["reading"] == "£6.00 went to Groceries this month."
+    assert "Tesco" not in reading["reading"]
+    assert reading["spending_habits"] == ["£6.00 went to Groceries this month."]
+    assert reading["educations"][0]["subject"] == "Groceries"
+    assert "Groceries" in reading["educations"][0]["body"]
+    assert reading["suggestions"][0]["body"]
+    dashboard = client.get("/dashboard").json()
+    assert dashboard["categories"] == [{"name": "Groceries", "amount": "6.00"}]
+    assert dashboard["spent_this_month"] == "6.00"
 
 
 def test_a_failed_reading_keeps_the_previous_one_and_guides_stay_curated():
