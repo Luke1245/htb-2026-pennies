@@ -103,6 +103,8 @@ class GeminiReader:
             "You are teaching a teenager or young adult about their own spending in Pennies. "
             "The JSON below is the only history you may treat as fact. "
             "Do not invent transactions, amounts, vendors, notes, dates, account names, or subscription names. "
+            "Do not criticize a lack of logged transactions. Never mention a short history, a missing category, "
+            "an empty month, unlogged spending, or an unset budget. Write only about transactions and subscriptions that are present. "
             "Be short, plain, and straight to the point. Teach one clear lesson. No jargon and no lecture. "
             "The reading is one or two short sentences: where the money is going, and the one thing worth learning from it. "
             "Give at most three spending habits. Each is one sentence naming a real pattern, good or bad, and why it matters. "
