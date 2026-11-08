@@ -18,7 +18,7 @@ async function api(path, token, options = {}) {
   return body
 }
 
-export async function fetchPortrait(getAccessTokenSilently, request) {
+async function fetchPortrait(getAccessTokenSilently, request) {
   const headers = await authHeaders(getAccessTokenSilently)
   const token = headers.Authorization.replace('Bearer ', '')
   if (request.action === 'share') {
@@ -51,7 +51,9 @@ export async function fetchPortrait(getAccessTokenSilently, request) {
 export default function SpendingHabitsPage({ loadPortrait, onBack, onLogout, isActive = true }) {
   const { getAccessTokenSilently } = useAuth0()
   const tokenProvider = useRef(getAccessTokenSilently)
-  tokenProvider.current = getAccessTokenSilently
+  useEffect(() => {
+    tokenProvider.current = getAccessTokenSilently
+  }, [getAccessTokenSilently])
   const load = useCallback(
     (request) => (loadPortrait ? loadPortrait(request) : fetchPortrait(tokenProvider.current, request)),
     [loadPortrait],
