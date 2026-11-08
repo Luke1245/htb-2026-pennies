@@ -37,7 +37,7 @@ export default function SpendingHabitsPage({ generateHabits = generateDemoHabits
   }
 
   const undoDismissal = () => {
-    setHabits((current) => [...current, ...lastDismissal.habits])
+    setHabits((current) => [...lastDismissal.habits, ...current].slice(0, 3))
     setDismissals((current) => current.filter((item) => item.patternKey !== lastDismissal.habits[0].patternKey))
     setLastDismissal(null)
   }

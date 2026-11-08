@@ -136,4 +136,25 @@ describe('Spending habits page', () => {
     expect(await screen.findByRole('heading', { name: 'No spending history yet' })).toBeInTheDocument()
     expect(screen.getByText('Add a Transaction from the dashboard when you’re ready. Pennies will use your real spending to find habits.')).toBeInTheDocument()
   })
+
+  it('keeps the three-habit limit when Undo follows an automatic backfill', async () => {
+    const user = userEvent.setup()
+    const second = { ...habits[0], id: 'second', patternKey: 'second', title: 'Second habit' }
+    const third = { ...habits[0], id: 'third', patternKey: 'third', title: 'Third habit' }
+    const fourth = { ...habits[0], id: 'fourth', patternKey: 'fourth', title: 'Fourth habit' }
+    const generateHabits = vi.fn()
+      .mockResolvedValueOnce({ habits: [habits[0], second, third] })
+      .mockResolvedValueOnce({ habits: [habits[0], second, third, fourth] })
+    render(<SpendingHabitsPage generateHabits={generateHabits} onBack={() => {}} />)
+
+    await screen.findByRole('heading', { name: 'Weekend treats' })
+    await user.click(screen.getByRole('button', { name: 'Dismiss Weekend treats' }))
+    await user.click(screen.getByRole('button', { name: 'Hide for a week' }))
+    fireEvent(window, new Event('pennies:transactions-changed'))
+    await screen.findByRole('heading', { name: 'Fourth habit' })
+    await user.click(screen.getByRole('button', { name: 'Undo' }))
+
+    expect(screen.getAllByRole('heading', { level: 3 })).toHaveLength(3)
+    expect(screen.getByRole('heading', { name: 'Weekend treats' })).toBeInTheDocument()
+  })
 })
