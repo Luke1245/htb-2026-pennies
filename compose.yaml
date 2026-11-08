@@ -1,0 +1,61 @@
+name: pennies
+
+services:
+  api:
+    build:
+      context: ./backend
+    env_file:
+      - backend/.env
+    restart: unless-stopped
+    stop_grace_period: 20s
+    expose:
+      - "8000"
+    mem_limit: 512m
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request as u; u.urlopen('http://127.0.0.1:8000/health', timeout=4)",
+        ]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 40s
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  web:
+    build:
+      context: ./frontend
+      args:
+        VITE_AUTH0_DOMAIN: ${VITE_AUTH0_DOMAIN:?set VITE_AUTH0_DOMAIN in the .env file next to compose.yaml}
+        VITE_AUTH0_CLIENT_ID: ${VITE_AUTH0_CLIENT_ID:?set VITE_AUTH0_CLIENT_ID in the .env file next to compose.yaml}
+        VITE_AUTH0_AUDIENCE: ${VITE_AUTH0_AUDIENCE:-}
+        VITE_API_URL: ${VITE_API_URL:-}
+    depends_on:
+      api:
+        condition: service_healthy
+    environment:
+      SITE_ADDRESS: ${SITE_ADDRESS:-}
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - letsencrypt:/etc/letsencrypt
+      - certbot_www:/var/www/certbot
+    restart: unless-stopped
+    mem_limit: 256m
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+volumes:
+  letsencrypt:
+  certbot_www:

@@ -89,16 +89,73 @@
   font-size: 13px;
 }
 
+.pennie-advice {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.pennie-avatar {
+  width: 148px;
+  height: auto;
+  flex: none;
+}
+
+.pennie-bubble {
+  position: relative;
+  flex: 1;
+  margin-bottom: 28px;
+  padding: 18px 20px;
+  border: 1px solid #acd990;
+  border-radius: 18px;
+  background: #f4faef;
+  color: #112114;
+}
+
+.pennie-bubble::before {
+  content: '';
+  position: absolute;
+  left: -8px;
+  bottom: 36px;
+  width: 16px;
+  height: 16px;
+  border-left: 1px solid #acd990;
+  border-bottom: 1px solid #acd990;
+  background: #f4faef;
+  transform: rotate(45deg);
+}
+
+.pennie-points h3 {
+  margin: 16px 0 6px;
+  color: #487853;
+  font-size: 15px;
+  font-weight: 650;
+}
+
+.pennie-points p,
+.pennie-lesson {
+  margin: 0 0 10px;
+  color: #112114;
+  font-size: 15px;
+  line-height: 1.5;
+}
+
+.pennie-lesson strong {
+  color: #112114;
+  font-weight: 650;
+}
+
 .portrait-reading {
-  margin: 0 0 8px;
+  margin: 0;
   white-space: pre-wrap;
   color: #112114;
   font-size: 17px;
-  line-height: 1.6;
+  line-height: 1.5;
 }
 
 .habit-section {
-  margin-top: 28px;
+  margin-top: 20px;
 }
 
 .habit-section > h3 {
@@ -400,6 +457,23 @@ select:focus-visible {
 
   .habits-heading {
     margin-top: 28px;
+  }
+
+  .pennie-advice {
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .pennie-avatar {
+    width: 120px;
+  }
+
+  .pennie-bubble {
+    margin-bottom: 0;
+  }
+
+  .pennie-bubble::before {
+    display: none;
   }
 
   .habit-card {

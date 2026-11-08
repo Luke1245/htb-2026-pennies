@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useAuth0 } from '@auth0/auth0-react'
 import { apiUrl, authHeaders } from './api.js'
+import pennie from './assets/pennie.png'
 import './spending-habits.css'
 
 const loadMessage = 'Pennies could not load your records'
@@ -34,8 +35,8 @@ async function fetchPortrait(getAccessTokenSilently, request) {
     fetch(`${apiUrl}/sharing-mode`, { headers }),
     fetch(`${apiUrl}/reading`, { headers }),
   ])
-  if (!sharingResponse.ok || !readingResponse.ok) throw new Error(loadMessage)
-  const sharing = await sharingResponse.json()
+  if (!readingResponse.ok) throw new Error(loadMessage)
+  const sharing = sharingResponse.ok ? await sharingResponse.json() : { mode: 'raw' }
   const reading = await readingResponse.json()
   if (reading.reading) {
     return { mode: sharing.mode || 'raw', portrait: reading.reading, updated: true }
@@ -72,7 +73,7 @@ export default function SpendingHabitsPage({ loadPortrait, onBack, onLogout, isA
     if (result.portrait) {
       portraitRef.current = result.portrait
       setPortrait(result.portrait)
-      setError(result.updated === false)
+      setError(false)
     } else if (result.updated) {
       portraitRef.current = null
       setPortrait(null)
@@ -88,6 +89,11 @@ export default function SpendingHabitsPage({ loadPortrait, onBack, onLogout, isA
   useEffect(() => {
     let active = true
     const requestId = ++latestRequest.current
+    const timer = setTimeout(() => {
+      if (!active || requestId !== latestRequest.current || portraitRef.current) return
+      setError(true)
+      setStatus('ready')
+    }, 20000)
     load({ action: 'load' })
       .then((result) => {
         if (!active || requestId !== latestRequest.current) return
@@ -98,8 +104,10 @@ export default function SpendingHabitsPage({ loadPortrait, onBack, onLogout, isA
         setError(true)
         setStatus('ready')
       })
+      .finally(() => clearTimeout(timer))
     return () => {
       active = false
+      clearTimeout(timer)
     }
   }, [load, applyResult])
 
@@ -112,7 +120,9 @@ export default function SpendingHabitsPage({ loadPortrait, onBack, onLogout, isA
           applyResult(result, true)
         })
         .catch(() => {
-          if (requestId === latestRequest.current) setError(true)
+          if (requestId !== latestRequest.current) return
+          setError(true)
+          setStatus('ready')
         })
     }
     wasActive.current = isActive
@@ -127,7 +137,9 @@ export default function SpendingHabitsPage({ loadPortrait, onBack, onLogout, isA
         if (requestId !== latestRequest.current) return
         applyResult(result, true)
       } catch {
-        if (requestId === latestRequest.current) setError(true)
+        if (requestId !== latestRequest.current) return
+        setError(true)
+        setStatus('ready')
       }
     }
     window.addEventListener('pennies:transactions-changed', refresh)
@@ -179,13 +191,13 @@ export default function SpendingHabitsPage({ loadPortrait, onBack, onLogout, isA
         </div>
         {sharingMode === 'sanitised' && (
           <p className="privacy-note">
-            Sanitised sharing protects vendor names, notes, exact dates, and account names, so habits may be less specific.
+            Sanitised mode hides names and exact dates, so the lesson stays more general.
           </p>
         )}
         <div className="habits-heading">
           <p className="eyebrow">Your money, made clearer</p>
           <h2>Spending habits</h2>
-          <p>A detailed reading of your spending, and the patterns it suggests.</p>
+          <p>A short lesson from your spending.</p>
         </div>
         {status === 'loading' && <p role="status">Finding your spending habits…</p>}
         {error && (
@@ -194,58 +206,66 @@ export default function SpendingHabitsPage({ loadPortrait, onBack, onLogout, isA
               We couldn’t update your habits.
               {portrait ? ' Your existing reading is still here.' : ' Please try again.'}
             </p>
-            <button type="button" onClick={() => window.dispatchEvent(new Event('pennies:transactions-changed'))}>
+            <button
+              type="button"
+              onClick={() => {
+                setStatus('loading')
+                setError(false)
+                const requestId = ++latestRequest.current
+                load({ action: 'load' })
+                  .then((result) => {
+                    if (requestId !== latestRequest.current) return
+                    applyResult(result, true)
+                  })
+                  .catch(() => {
+                    if (requestId !== latestRequest.current) return
+                    setError(true)
+                    setStatus('ready')
+                  })
+              }}
+            >
               Try again
             </button>
           </div>
         )}
         {status === 'ready' && !portrait && !error && (
-          <section className="empty-state">
+          <PennieSays>
             <h3>No spending history yet</h3>
             <p>
-              Add a Transaction from the dashboard when you’re ready. Pennies will use your real spending to find habits.
+              Add a Transaction from the dashboard when you’re ready. I’ll use your real spending to find habits.
             </p>
-          </section>
+          </PennieSays>
         )}
         {portrait && (
           <>
-            <p className="portrait-reading">{portrait.reading}</p>
+            <PennieSays>
+              <p className="portrait-reading">{openingLesson(portrait.reading)}</p>
+              <div className="pennie-points">
+                <h3>Learn this</h3>
+                {(portrait.educations || []).length === 0 ? (
+                  <p className="pennie-lesson">No lesson yet</p>
+                ) : (
+                  (portrait.educations || []).map((education) => (
+                    <p className="pennie-lesson" key={education.id}>
+                      <strong>{education.subject}.</strong> {education.body}
+                    </p>
+                  ))
+                )}
+                <h3>Try this</h3>
+                {(portrait.suggestions || []).length === 0 ? (
+                  <p className="status">Nothing to try yet</p>
+                ) : (
+                  (portrait.suggestions || []).map((suggestion) => <p key={suggestion.id}>{suggestion.body}</p>)
+                )}
+              </div>
+            </PennieSays>
             <section className="habit-section">
               <h3>Spending habits</h3>
-              <HabitCards items={portrait.spending_habits} empty="No spending habits yet" />
+              <HabitCards items={portrait.spending_habits || []} empty="No spending habits yet" />
             </section>
             <section className="habit-section">
-              <h3>Projected habits</h3>
-              <HabitCards items={portrait.projected_habits} empty="No projected habits yet" />
-            </section>
-            <section className="habit-section">
-              <h3>Education</h3>
-              {portrait.educations.length === 0 ? (
-                <p className="status">No education yet</p>
-              ) : (
-                <div className="habit-list">
-                  {portrait.educations.map((education) => (
-                    <article className="habit-card" key={education.id}>
-                      <h3>{education.subject}</h3>
-                      <p>{education.body}</p>
-                    </article>
-                  ))}
-                </div>
-              )}
-            </section>
-            <section className="habit-section">
-              <h3>Suggestions</h3>
-              {portrait.suggestions.length === 0 ? (
-                <p className="status">No suggestions yet</p>
-              ) : (
-                <div className="habit-list">
-                  {portrait.suggestions.map((suggestion) => (
-                    <article className="habit-card" key={suggestion.id}>
-                      <p>{suggestion.body}</p>
-                    </article>
-                  ))}
-                </div>
-              )}
+              <h3>If this keeps going</h3>
+              <HabitCards items={portrait.projected_habits || []} empty="Nothing to watch yet" />
             </section>
           </>
         )}
@@ -254,8 +274,7 @@ export default function SpendingHabitsPage({ loadPortrait, onBack, onLogout, isA
             <div className="sharing-dialog" role="dialog" aria-modal="true" aria-labelledby="sharing-dialog-title">
               <h2 id="sharing-dialog-title">Change how much Pennies shares?</h2>
               <p>
-                To protect your privacy, the current Financial portrait will be removed and written again for the new
-                sharing mode.
+                To protect your privacy, this lesson will be removed and written again for the new sharing mode.
               </p>
               <div>
                 <button type="button" onClick={() => setPendingSharingMode(null)}>
@@ -271,6 +290,21 @@ export default function SpendingHabitsPage({ loadPortrait, onBack, onLogout, isA
       </main>
     </div>
   )
+}
+
+function PennieSays({ children }) {
+  return (
+    <section className="pennie-advice" aria-label="Pennie’s advice">
+      <img className="pennie-avatar" src={pennie} alt="Pennie" />
+      <div className="pennie-bubble">{children}</div>
+    </section>
+  )
+}
+
+function openingLesson(reading) {
+  const sentences = String(reading).match(/[^.!?]+[.!?]+/g)
+  if (!sentences) return reading
+  return sentences.slice(0, 2).join(' ').trim()
 }
 
 function HabitCards({ items, empty }) {

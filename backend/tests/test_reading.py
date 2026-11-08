@@ -180,8 +180,9 @@ def test_gemini_client_reads_structured_json(monkeypatch):
             assert json["generationConfig"]["temperature"] == 0
             text = '{"category": "Transport"}'
         else:
-            assert "Do extrapolate" in prompt
-            assert json["generationConfig"]["temperature"] == 1.2
+            assert "one or two short sentences" in prompt
+            assert "lack of logged transactions" in prompt
+            assert json["generationConfig"]["temperature"] == 0.6
             text = json_dumps_reading()
         request = httpx.Request("POST", url)
         return httpx.Response(200, json={"candidates": [{"content": {"parts": [{"text": text}]}}]}, request=request)
@@ -195,6 +196,39 @@ def test_gemini_client_reads_structured_json(monkeypatch):
     assert draft.reading == "A careful picture."
     assert draft.educations[0].guide_id == "budgeting-basics"
     assert draft.suggestions[0].education_index == 0
+
+
+def test_gemini_client_keeps_the_lesson_short(monkeypatch):
+    def fake_post(url, headers, json, timeout):
+        text = (
+            '{"reading":"  Rent comes first. Lunches are the leak. The rest can wait.  ",'
+            '"spending_habits":["One","Two","Three","Four"],'
+            '"projected_habits":["Watch one","Watch two","Watch three"],'
+            '"educations":['
+            '{"subject":"A","guide_id":"","body":"First lesson."},'
+            '{"subject":"B","guide_id":"","body":"Second lesson."},'
+            '{"subject":"C","guide_id":"","body":"Third lesson."}],'
+            '"suggestions":['
+            '{"education_index":0,"body":"Do one thing."},'
+            '{"education_index":1,"body":"Do another."},'
+            '{"education_index":0,"body":"Do a third."}]}'
+        )
+        request = httpx.Request("POST", url)
+        return httpx.Response(
+            200,
+            json={"candidates": [{"content": {"parts": [{"text": text}]}}]},
+            request=request,
+        )
+
+    monkeypatch.setattr("pennies.gemini.httpx.post", fake_post)
+    from pennies.gemini import GeminiReader
+
+    draft = GeminiReader("secret", "gemini-3.5-flash").read({})
+    assert draft.reading == "Rent comes first. Lunches are the leak."
+    assert draft.spending_habits == ["One", "Two", "Three"]
+    assert draft.projected_habits == ["Watch one", "Watch two"]
+    assert [item.subject for item in draft.educations] == ["A", "B"]
+    assert [item.body for item in draft.suggestions] == ["Do one thing.", "Do another."]
 
 
 def json_dumps_reading():

@@ -1,4 +1,5 @@
 import json
+import re
 
 import httpx
 
@@ -79,6 +80,27 @@ _READING_SCHEMA = {
 }
 
 
+def _opening(reading: str) -> str:
+    text = reading.strip()
+    sentences = [part.strip() for part in re.findall(r"[^.!?]+[.!?]+", text)]
+    sentences = [part for part in sentences if part]
+    if not sentences:
+        return text
+    return " ".join(sentences[:2])
+
+
+def _short_lines(items, limit: int) -> list[str]:
+    lines = []
+    for item in items or []:
+        text = str(item).strip()
+        if not text:
+            continue
+        lines.append(text)
+        if len(lines) == limit:
+            break
+    return lines
+
+
 class GeminiReader:
     def __init__(self, api_key: str, model: str):
         self.api_key = api_key
@@ -100,32 +122,27 @@ class GeminiReader:
 
     def read(self, payload: dict) -> ReadingDraft | None:
         prompt = (
-            "You are writing a Pennies Financial portrait. The JSON below is the only history you may treat as fact. "
+            "You are teaching a teenager or young adult about their own spending in Pennies. "
+            "The JSON below is the only history you may treat as fact. "
             "Do not invent transactions, amounts, vendors, notes, dates, account names, or subscription names. "
-            "Do extrapolate. A short history is enough for a strong point of view. "
-            "State bold assumptions in plain language, then build a detailed picture of what this spending implies: "
-            "where the money is really going, which patterns matter, what is about to get expensive, "
-            "and what a few more weeks of the same behaviour would mean. "
-            "Name spending habits, good or bad, as concrete observations, not labels. "
-            "Name projected habits as the bad patterns you expect if this behaviour continues, "
-            "and say the assumption that makes each one likely. "
-            "Write education that either applies one of the supplied guides by its guide_id, "
-            "or explains a category, spending habit, or projected habit that no guide covers. "
-            "Make each explanation specific to this history. "
-            "Write suggestions that follow from one of those educations by education_index, "
-            "focused primarily on the current month, and concrete enough to act on this month. "
-            "Leave guide_id empty when the education does not apply a guide. "
-            "Write at most three recommendations, most relevant first, each pointing to one of the "
-            "supplied guides by guide_id or one of the supplied resources by resource_id, "
-            "with a one-sentence reason tied to a named spending habit, category, or projected habit. "
-            "Only recommend material that genuinely fits this history; fewer than three is fine. "
-            "The reading itself should be several paragraphs: specific, opinionated, and interesting. "
-            "Habits, education, and suggestions should be detailed sentences. "
+            "Do not criticize a lack of logged transactions. Never mention a short history, a missing category, "
+            "an empty month, unlogged spending, or an unset budget. Write only about transactions and subscriptions that are present. "
+            "Be short, plain, and straight to the point. Teach one clear lesson. No jargon and no lecture. "
+            "The reading is one or two short sentences: where the money is going, and the one thing worth learning from it. "
+            "Give at most three spending habits. Each is one sentence naming a real pattern, good or bad, and why it matters. "
+            "Give at most two projected habits. Each is one sentence on what gets worse if this continues. "
+            "Give at most two educations. Each teaches one idea from this spending, in two short sentences. "
+            "Apply a supplied guide by its guide_id when it fits. Otherwise explain the category, spending habit, "
+            "or projected habit, and leave guide_id empty. "
+            "Give at most two suggestions. Each follows one education by education_index and is one thing to do this month. "
+            "Give at most three recommendations, most relevant first, each pointing to one of the supplied guides by "
+            "guide_id or one of the supplied resources by resource_id, with a one-sentence reason tied to a named "
+            "spending habit or category. Only recommend material that genuinely fits this history; fewer is fine. "
             f"History: {json.dumps(payload)}"
         )
         try:
             body = self._generate(
-                prompt, _READING_SCHEMA, temperature=1.2, max_output_tokens=4096, timeout=120
+                prompt, _READING_SCHEMA, temperature=0.6, max_output_tokens=1200, timeout=120
             )
         except (httpx.HTTPError, KeyError, IndexError, json.JSONDecodeError, TypeError):
             return None
@@ -165,12 +182,12 @@ class GeminiReader:
                 )
             )
         return ReadingDraft(
-            reading=str(body.get("reading") or ""),
-            spending_habits=[str(item) for item in body.get("spending_habits") or []],
-            projected_habits=[str(item) for item in body.get("projected_habits") or []],
-            educations=educations,
-            suggestions=suggestions,
-            recommendations=recommendations,
+            reading=_opening(str(body.get("reading") or "")),
+            spending_habits=_short_lines(body.get("spending_habits"), 3),
+            projected_habits=_short_lines(body.get("projected_habits"), 2),
+            educations=educations[:2],
+            suggestions=suggestions[:2],
+            recommendations=recommendations[:3],
         )
 
     def _generate(
