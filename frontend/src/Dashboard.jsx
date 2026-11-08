@@ -246,43 +246,47 @@ export default function Dashboard() {
             {!status && !figures && <p className="status">Loading…</p>}
             {figures && (
               <div className="tiles">
-                <section className="tile wide">
-                  <h2>Financial portrait</h2>
-                  {readingPending && <p className="status">Reading your spending…</p>}
-                  {readingNote && <p className="status">{readingNote}</p>}
-                  {portrait ? (
-                    <>
-                      <p className="reading">{portrait.reading}</p>
-                      <h3>Spending habits</h3>
-                      <HabitList items={portrait.spending_habits} empty="No spending habits yet" />
-                      <h3>Projected habits</h3>
-                      <HabitList items={portrait.projected_habits} empty="No projected habits yet" />
-                      <h3>Education</h3>
-                      {portrait.educations.length === 0 ? (
-                        <p className="status">No education yet</p>
-                      ) : (
-                        portrait.educations.map((education) => (
-                          <article key={education.id} className="reading-block">
-                            <h4>{education.subject}</h4>
-                            <p>{education.body}</p>
-                          </article>
-                        ))
-                      )}
-                      <h3>Suggestions</h3>
-                      {portrait.suggestions.length === 0 ? (
-                        <p className="status">No suggestions yet</p>
-                      ) : (
-                        <ul className="suggestions">
-                          {portrait.suggestions.map((suggestion) => (
-                            <li key={suggestion.id}>{suggestion.body}</li>
-                          ))}
-                        </ul>
-                      )}
-                    </>
-                  ) : (
-                    !readingPending && <p className="status">No reading yet</p>
-                  )}
-                </section>
+                <details className="tile wide overview">
+                  <summary>
+                    <span>Financial portrait</span>
+                    {readingPending && <span className="overview-hint">Reading your spending…</span>}
+                  </summary>
+                  <div className="overview-body">
+                    {readingNote && <p className="status">{readingNote}</p>}
+                    {portrait ? (
+                      <>
+                        <p className="reading">{portrait.reading}</p>
+                        <h3>Spending habits</h3>
+                        <HabitList items={portrait.spending_habits} empty="No spending habits yet" />
+                        <h3>Projected habits</h3>
+                        <HabitList items={portrait.projected_habits} empty="No projected habits yet" />
+                        <h3>Education</h3>
+                        {portrait.educations.length === 0 ? (
+                          <p className="status">No education yet</p>
+                        ) : (
+                          portrait.educations.map((education) => (
+                            <article key={education.id} className="reading-block">
+                              <h4>{education.subject}</h4>
+                              <p>{education.body}</p>
+                            </article>
+                          ))
+                        )}
+                        <h3>Suggestions</h3>
+                        {portrait.suggestions.length === 0 ? (
+                          <p className="status">No suggestions yet</p>
+                        ) : (
+                          <ul className="suggestions">
+                            {portrait.suggestions.map((suggestion) => (
+                              <li key={suggestion.id}>{suggestion.body}</li>
+                            ))}
+                          </ul>
+                        )}
+                      </>
+                    ) : (
+                      !readingPending && <p className="status">No reading yet</p>
+                    )}
+                  </div>
+                </details>
                 <section className="tile">
                   <h2>Spent this month</h2>
                   <p className="stat">{pounds(figures.spent_this_month)}</p>

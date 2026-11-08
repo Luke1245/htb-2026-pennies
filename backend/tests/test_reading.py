@@ -172,8 +172,11 @@ def test_gemini_client_reads_structured_json(monkeypatch):
         assert "gemini-3.5-flash" in url
         prompt = json["contents"][0]["parts"][0]["text"]
         if prompt.startswith("Assign"):
+            assert json["generationConfig"]["temperature"] == 0
             text = '{"category": "Transport"}'
         else:
+            assert "Do extrapolate" in prompt
+            assert json["generationConfig"]["temperature"] == 1.2
             text = json_dumps_reading()
         request = httpx.Request("POST", url)
         return httpx.Response(200, json={"candidates": [{"content": {"parts": [{"text": text}]}}]}, request=request)
