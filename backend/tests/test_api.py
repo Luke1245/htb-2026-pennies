@@ -9,9 +9,9 @@ from pennies.settings import Settings
 NOW = datetime(2026, 11, 7, 12, tzinfo=timezone.utc)
 
 
-def make_client(clock=None):
+def make_client(clock=None, reader=None):
     holder = {"sub": "user-a"}
-    app = create_app("sqlite:///:memory:", clock=clock or (lambda: NOW))
+    app = create_app("sqlite:///:memory:", clock=clock or (lambda: NOW), reader=reader)
     app.dependency_overrides[app.state.get_current_user] = lambda: holder["sub"]
     return TestClient(app), holder
 
@@ -44,6 +44,7 @@ def test_dashboard_starts_empty():
     assert body["left_to_spend"] == "0.00"
     assert body["monthly_budget"] is None
     assert body["categories"] == []
+    assert body["subscriptions"] == "0.00"
     assert "recent_transactions" not in body
 
 
@@ -57,7 +58,6 @@ def test_spending_rules_and_london_month():
         json={
             "account_id": cash["id"],
             "amount": "-18.40",
-            "category": "Other",
             "vendor": "Tesco",
             "occurred_at": "2026-11-02T10:00:00+00:00",
         },
@@ -69,7 +69,6 @@ def test_spending_rules_and_london_month():
         json={
             "account_id": cash["id"],
             "amount": "1850.00",
-            "category": "Other",
             "vendor": "Employer",
             "occurred_at": "2026-11-01T09:00:00+00:00",
         },
@@ -81,7 +80,6 @@ def test_spending_rules_and_london_month():
         json={
             "account_id": cash["id"],
             "amount": "-50.00",
-            "category": "Other",
             "vendor": "Old shop",
             "occurred_at": "2026-10-31T23:30:00+00:00",
         },
@@ -134,7 +132,6 @@ def test_summer_time_month_boundary():
         json={
             "account_id": cash["id"],
             "amount": "-4.00",
-            "category": "Other",
             "vendor": "Cafe",
             "occurred_at": "2026-07-01T00:30:00+01:00",
         },
@@ -145,7 +142,6 @@ def test_summer_time_month_boundary():
         json={
             "account_id": cash["id"],
             "amount": "-9.00",
-            "category": "Other",
             "vendor": "Late",
             "occurred_at": "2026-06-30T23:30:00+01:00",
         },
@@ -162,7 +158,6 @@ def test_rejects_invalid_transactions_and_limits_edits():
         json={
             "account_id": cash["id"],
             "amount": "-1.00",
-            "category": "Other",
             "occurred_at": "2026-11-02T10:00:00+00:00",
         },
     )
@@ -173,7 +168,6 @@ def test_rejects_invalid_transactions_and_limits_edits():
         json={
             "account_id": cash["id"],
             "amount": "0.00",
-            "category": "Other",
             "vendor": "Tesco",
             "occurred_at": "2026-11-02T10:00:00+00:00",
         },
@@ -197,7 +191,6 @@ def test_rejects_invalid_transactions_and_limits_edits():
         json={
             "account_id": cash["id"],
             "amount": "-1.00",
-            "category": "Other",
             "vendor": "Tesco",
             "note": "  milk  ",
             "occurred_at": "2026-11-02T10:00:00+00:00",
@@ -207,8 +200,11 @@ def test_rejects_invalid_transactions_and_limits_edits():
     assert created.json()["note"] == "milk"
     transaction_id = created.json()["id"]
 
-    edited = client.patch(f"/transactions/{transaction_id}", json={"category": "Other"})
+    edited = client.patch(f"/transactions/{transaction_id}", json={"category": "Groceries"})
     assert edited.status_code == 200
+    assert edited.json()["category"] == "Groceries"
+    rejected = client.patch(f"/transactions/{transaction_id}", json={"category": "Adjustment"})
+    assert rejected.status_code == 422
     forbidden = client.patch(
         f"/transactions/{transaction_id}", json={"category": "Other", "amount": "-2.00"}
     )
@@ -258,7 +254,6 @@ def test_transactions_can_be_read_past_the_first_page():
             json={
                 "account_id": cash["id"],
                 "amount": f"-{index + 1}.00",
-                "category": "Other",
                 "vendor": f"Shop {index}",
                 "occurred_at": f"2026-11-0{index + 1}T10:00:00+00:00",
             },

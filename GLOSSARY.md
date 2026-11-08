@@ -23,7 +23,10 @@ Money paid out by the user, represented by a negative Transaction amount.
 A user-owned place money is held, such as cash or a bank account, without an external connection or synchronised balance.
 
 **Spent this month**:
-The total value of non-transfer, non-adjustment outflow Transactions occurring in the current Calendar month, without subtracting inflows.
+The total of ordinary outflows in the current Calendar month, plus logged Subscriptions for that month, without subtracting inflows. Transfers and Adjustments are excluded.
+
+**Spending insights**:
+The current Calendar month's ordinary outflows grouped by Category, shown beside the total of logged Subscriptions for that month.
 
 **Transfer**:
 Two linked Transactions representing money moved between the user's own Accounts: an outflow from the source and an inflow to the destination, neither counted as spending.
@@ -41,7 +44,7 @@ When a Monthly budget exists, that budget minus Spent this month; a negative val
 An optional spending limit assigned to one Calendar month; later edits do not alter other months, and a new month may copy the previous month's value.
 
 **Category**:
-A classification from Pennies' predefined list, assigned by AI to an ordinary Transaction and changeable by the user. A Transfer is not categorised. An Adjustment uses the reserved Adjustment Category.
+Groceries, Transport, Eating out, Entertainment, Income, or Other, assigned once by Gemini to an ordinary Transaction (Other when it cannot choose) and changeable by the user. A Transfer is not categorised, an Adjustment uses the reserved Adjustment Category, and a Subscription has no Category.
 
 **Spending habit**:
 A pattern already visible in a user's historical spending, whether good or bad.
@@ -51,7 +54,7 @@ A bad Spending habit Gemini expects if the user's current behaviour continues.
 _Avoid_: Forecast, prediction
 
 **Financial portrait**:
-The account owner's single current in-depth reading of their ordinary Transactions under the active sharing mode, naming their Spending habits and Projected habits. It exists only after the first ordinary Transaction; a later ordinary Transaction replaces it, and changing sharing mode discards it together with the Education and Suggestions written from it.
+The account owner's single current read-only in-depth reading, under the active sharing mode, of their ordinary Transactions, logged Subscriptions, current Monthly budget, Left to spend, and the Account balances that mode allows, naming their Spending habits and Projected habits. It is built once there is an ordinary Transaction or logged Subscription to read, including on the next dashboard visit when that reading is missing, and a new ordinary Transaction, Category change, Subscription change, or sharing-mode change replaces it.
 _Avoid_: Profile, persona
 
 **Guide**:
@@ -59,16 +62,16 @@ A short, curated financial-literacy article based on trusted sources, without AI
 _Avoid_: Education guide, basic advice
 
 **Education**:
-An AI-generated explanation that applies a Guide to the user's situation, written from their Financial portrait.
+A read-only, AI-generated explanation written from the user's Financial portrait. It names the Guide it applies, or the Category, Spending habit, or Projected habit it explains when no Guide covers that subject.
 
 **Suggestion**:
-A personalised action written from the user's Financial portrait, following from their Education and focused primarily on current-month patterns.
+A read-only personalised action written from the user's Financial portrait, following from a named Education and focused primarily on current-month patterns.
 
 **Subscription**:
-A recurring financial commitment for which the user manually records each monthly outflow; it does not count as spending by itself.
+A monthly outflow the user logs apart from ordinary Transactions for one Calendar month: a name and a positive amount, with no Category. It counts towards Spent this month for that month, is part of the Financial portrait, and can shape Suggestions.
 
 **Raw sharing**:
-The default AI sharing mode. It includes each transaction's vendor or payee, amount, category, date, and note, plus Account names and calculated balances.
+The default AI sharing mode. It includes each transaction's vendor or payee, amount, category, date, and note, each logged Subscription's name, amount, and Calendar month, plus Account names and calculated balances.
 
 **Sanitised sharing**:
-An AI sharing mode that includes only transaction amount, category, and calendar month, plus calculated Account balances without their names.
+An AI sharing mode that includes only transaction amount, category, and calendar month, each logged Subscription's amount and Calendar month, plus calculated Account balances without their names.

@@ -1,0 +1,3 @@
+# Gemini reads spending, not transfers
+
+The Financial portrait is built from ordinary Transactions, logged Subscriptions, the current Monthly budget, Left to spend, and the Account balances allowed by the sharing mode. Transfer and Adjustment rows stay out of that reading because they are not spending; calculated balances still include them. This narrows ADR 0002, which sent Gemini the full transaction history. Sharing modes, discarding AI output on a mode change, and automatic categorisation are unchanged. Categorisation still sees the full ordinary Transaction in both modes, and stored Categories survive a mode switch.

@@ -76,7 +76,9 @@ def owned_account(db: Session, user_sub: str, account_id: uuid.UUID) -> Account:
     return account
 
 
-def create_transaction(db: Session, user_sub: str, command: NewTransaction) -> Transaction:
+def create_transaction(
+    db: Session, user_sub: str, command: NewTransaction, category_source: str | None
+) -> Transaction:
     account = owned_account(db, user_sub, command.account_id)
     if command.amount == 0:
         raise DomainError("Amount must not be zero")
@@ -85,11 +87,12 @@ def create_transaction(db: Session, user_sub: str, command: NewTransaction) -> T
         user_sub=user_sub,
         account_id=account.id,
         amount=command.amount,
-        category=OTHER,
+        category=command.category,
         vendor=command.vendor,
         note=command.note,
         occurred_at=as_utc(command.occurred_at),
         kind=TransactionKind.ordinary,
+        category_source=category_source,
     )
     db.add(transaction)
     db.flush()
@@ -126,7 +129,8 @@ def update_category(
     if transaction.kind is not TransactionKind.ordinary:
         raise DomainError("Only an ordinary transaction's category can be changed")
     require_ordinary_category(category)
-    transaction.category = OTHER
+    transaction.category = category
+    transaction.category_source = "user"
     db.flush()
     return transaction
 

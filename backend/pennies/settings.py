@@ -16,6 +16,8 @@ class Settings(BaseSettings):
     auth0_domain: str = ""
     auth0_audience: str = ""
     cors_origins: str = "http://localhost:5173,http://127.0.0.1:5173"
+    gemini_api_key: str = ""
+    gemini_model: str = "gemini-3.5-flash"
 
     def required_database_url(self) -> str:
         url = self.database_url.strip()

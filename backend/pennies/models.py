@@ -3,7 +3,7 @@ from datetime import datetime
 from decimal import Decimal
 from enum import Enum
 
-from sqlalchemy import DateTime, Enum as SqlEnum, Numeric, String, TypeDecorator, UniqueConstraint, Uuid
+from sqlalchemy import DateTime, Enum as SqlEnum, Numeric, String, Text, TypeDecorator, UniqueConstraint, Uuid
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 
@@ -57,6 +57,7 @@ class Transaction(Base):
         )
     )
     transfer_id: Mapped[uuid.UUID | None] = mapped_column(Uuid, nullable=True)
+    category_source: Mapped[str | None] = mapped_column(String(20), nullable=True)
 
     def counted_outflow(self) -> Decimal | None:
         if self.kind is not TransactionKind.ordinary or self.amount >= 0:
@@ -73,3 +74,58 @@ class MonthlyBudget(Base):
     year: Mapped[int]
     month: Mapped[int]
     amount: Mapped[Decimal] = mapped_column(MoneyColumn)
+
+
+class Subscription(Base):
+    __tablename__ = "subscriptions"
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    user_sub: Mapped[str] = mapped_column(String(128), index=True)
+    name: Mapped[str] = mapped_column(String(120))
+    amount: Mapped[Decimal] = mapped_column(MoneyColumn)
+    year: Mapped[int]
+    month: Mapped[int]
+
+
+class SharingPreference(Base):
+    __tablename__ = "sharing_preferences"
+
+    user_sub: Mapped[str] = mapped_column(String(128), primary_key=True)
+    mode: Mapped[str] = mapped_column(String(20))
+
+
+class Portrait(Base):
+    __tablename__ = "portraits"
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    user_sub: Mapped[str] = mapped_column(String(128), unique=True, index=True)
+    sharing_mode: Mapped[str] = mapped_column(String(20))
+    reading: Mapped[str] = mapped_column(Text)
+
+
+class Habit(Base):
+    __tablename__ = "habits"
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    portrait_id: Mapped[uuid.UUID] = mapped_column(Uuid, index=True)
+    kind: Mapped[str] = mapped_column(String(20))
+    description: Mapped[str] = mapped_column(Text)
+
+
+class EducationItem(Base):
+    __tablename__ = "educations"
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    portrait_id: Mapped[uuid.UUID] = mapped_column(Uuid, index=True)
+    subject: Mapped[str] = mapped_column(String(160))
+    guide_id: Mapped[str | None] = mapped_column(String(80), nullable=True)
+    body: Mapped[str] = mapped_column(Text)
+
+
+class SuggestionItem(Base):
+    __tablename__ = "suggestions"
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    portrait_id: Mapped[uuid.UUID] = mapped_column(Uuid, index=True)
+    education_id: Mapped[uuid.UUID] = mapped_column(Uuid, index=True)
+    body: Mapped[str] = mapped_column(Text)
