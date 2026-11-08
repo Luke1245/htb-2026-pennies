@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useAuth0 } from '@auth0/auth0-react'
 import './dashboard.css'
 import './App.css'
+import pennie from './assets/pennie.png'
 import Dashboard from './Dashboard.jsx'
 import SpendingHabitsPage from './SpendingHabitsPage.jsx'
 import RecommendationsPage from './RecommendationsPage.jsx'
@@ -99,6 +100,7 @@ function AboutYouDialog({ onSaved }) {
       onCancel={(event) => event.preventDefault()}
     >
       <form onSubmit={submit}>
+        <img className="about-you-portrait" src={pennie} alt="Penny" />
         <h2 id="about-you-title">Tell Penny about yourself</h2>
         <label>
           First name

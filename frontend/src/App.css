@@ -89,6 +89,13 @@
   background: rgba(17, 33, 20, 0.5);
 }
 
+.about-you-portrait {
+  display: block;
+  width: 160px;
+  height: auto;
+  margin: 0 auto 8px;
+}
+
 .about-you h2 {
   margin: 0 0 16px;
   font-size: 22px;

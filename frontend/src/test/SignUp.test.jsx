@@ -75,6 +75,7 @@ describe('first name', () => {
 
     const dialog = await screen.findByRole('dialog', { name: 'Tell Penny about yourself' })
     expect(dialog).toBeInTheDocument()
+    expect(screen.getByRole('img', { name: 'Penny' })).toBeInTheDocument()
     expect(screen.queryByText('Hi, Sam')).not.toBeInTheDocument()
 
     await user.type(screen.getByLabelText('First name'), 'Sam')
