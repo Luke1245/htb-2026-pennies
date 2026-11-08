@@ -36,6 +36,38 @@ const recommendations = [
 ]
 
 describe('Recommendations page', () => {
+  it('teaches a lesson from the user’s own spending', async () => {
+    const user = userEvent.setup()
+    const onOpenGuide = vi.fn()
+    const loadRecommendations = vi.fn().mockResolvedValue({
+      educations: [
+        {
+          id: 'e1',
+          subject: 'Eating out',
+          guide_id: 'budgeting-basics',
+          body: '£107.83 at Greggs and Domino’s is the pattern to watch.',
+        },
+      ],
+      suggestions: [{ id: 's1', education_id: 'e1', body: 'Pick two days this week without a takeaway.' }],
+      recommendations: [],
+      updated: true,
+    })
+    render(
+      <RecommendationsPage
+        loadRecommendations={loadRecommendations}
+        onBack={() => {}}
+        onOpenGuide={onOpenGuide}
+      />,
+    )
+
+    expect(await screen.findByRole('heading', { name: 'Eating out' })).toBeInTheDocument()
+    expect(screen.getByText('£107.83 at Greggs and Domino’s is the pattern to watch.')).toBeInTheDocument()
+    expect(screen.getByText('Pick two days this week without a takeaway.')).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: /read guide/i }))
+    expect(onOpenGuide).toHaveBeenCalledWith(expect.objectContaining({ id: 'budgeting-basics' }))
+    expect(screen.queryByRole('heading', { name: 'No recommendations yet' })).not.toBeInTheDocument()
+  })
+
   it('shows ranked Guide and Resource recommendations with reasons', async () => {
     const loadRecommendations = vi.fn().mockResolvedValue({ recommendations, updated: true })
     render(

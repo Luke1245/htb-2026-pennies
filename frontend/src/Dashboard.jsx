@@ -8,6 +8,7 @@ import { apiUrl, authHeaders } from './api.js'
 import { accountNamesById, movementName, transactionDetail } from './movementName.js'
 import { GuideCards } from './Guides.jsx'
 import { guides } from './guides.js'
+import pennie from './assets/pennie.png'
 
 const recordedMessage = 'Transaction recorded'
 const transferRecordedMessage = 'Transfer recorded'
@@ -136,7 +137,7 @@ export default function Dashboard({ name }) {
     event.preventDefault()
     if (savingBudget) return
     const amount = budgetDraft.trim()
-    if (!BUDGET_AMOUNT.test(amount)) {
+    if (amount && !BUDGET_AMOUNT.test(amount)) {
       setBudgetProblem('Enter a budget in pounds and pence.')
       return
     }
@@ -148,7 +149,7 @@ export default function Dashboard({ name }) {
       const response = await fetch(`${apiUrl}/monthly-budgets/${period.year}/${period.month}`, {
         method: 'PUT',
         headers: { ...headers, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ amount: budgetPounds(amount) }),
+        body: JSON.stringify({ amount: amount ? budgetPounds(amount) : null }),
       })
       if (!response.ok) throw new Error('Pennies could not save this budget')
       setBudgetFormOpen(false)
@@ -255,7 +256,14 @@ export default function Dashboard({ name }) {
         </div>
       </header>
       <main className="dashboard-main">
-            {name && <p className="greeting">Hi, {name}</p>}
+            {name && (
+              <section className="penny-greeting">
+                <img className="pennie-avatar" src={pennie} alt="Penny" />
+                <div className="pennie-bubble">
+                  <p className="greeting">Hi, {name}</p>
+                </div>
+              </section>
+            )}
             {status && <p className="status">{status}</p>}
             {!status && !figures && <p className="status">Loading…</p>}
             {figures && (
@@ -283,6 +291,7 @@ export default function Dashboard({ name }) {
                           onChange={(event) => setBudgetDraft(event.target.value)}
                         />
                       </label>
+                      <p className="status">Leave this empty to remove the budget.</p>
                       {budgetProblem && (
                         <p className="form-problem" role="alert">
                           {budgetProblem}
@@ -402,7 +411,7 @@ export default function Dashboard({ name }) {
               </div>
             )}
             <Link to="/recommendations" className="recommendations-link">
-              See what Pennies recommends for you <span aria-hidden="true">→</span>
+              See what Penny recommends for you <span aria-hidden="true">→</span>
             </Link>
             <GuideCards
               guides={guides}

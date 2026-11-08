@@ -52,19 +52,14 @@ describe('first name', () => {
     auth.loginWithRedirect.mockReset()
   })
 
-  it('sends sign up and log in straight to Auth0', async () => {
-    const user = userEvent.setup()
+  it('opens Auth0 without a welcome screen', async () => {
     render(<App />)
 
+    expect(screen.queryByRole('heading', { name: 'Welcome' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Log in' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Sign up' })).not.toBeInTheDocument()
     expect(screen.queryByLabelText('First name')).not.toBeInTheDocument()
-
-    await user.click(screen.getByRole('button', { name: 'Log in' }))
     expect(auth.loginWithRedirect).toHaveBeenCalledWith()
-
-    await user.click(screen.getByRole('button', { name: 'Sign up' }))
-    expect(auth.loginWithRedirect).toHaveBeenLastCalledWith({
-      authorizationParams: { screen_hint: 'signup' },
-    })
   })
 
   it('asks for a first name in a popup after sign-in', async () => {
@@ -82,6 +77,7 @@ describe('first name', () => {
     await user.click(screen.getByRole('button', { name: 'Save' }))
 
     expect(await screen.findByText('Hi, Sam')).toBeInTheDocument()
+    expect(screen.getByRole('img', { name: 'Penny' })).toBeInTheDocument()
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
   })
 })

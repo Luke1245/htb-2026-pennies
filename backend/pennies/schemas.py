@@ -66,6 +66,14 @@ def _optional_money(value):
     return parse_money(value)
 
 
+def _blankable_money(value):
+    if value is None:
+        return None
+    if isinstance(value, str) and not value.strip():
+        return None
+    return parse_money(value)
+
+
 OptionalMoney = Annotated[Decimal | None, BeforeValidator(_optional_money)]
 
 
@@ -143,7 +151,7 @@ class ReconciliationOut(ApiModel):
 
 
 class BudgetIn(ApiModel):
-    amount: Money
+    amount: Annotated[Decimal | None, BeforeValidator(_blankable_money)] = None
 
 
 class BudgetOut(ApiModel):
@@ -221,6 +229,7 @@ class PortraitOut(ApiModel):
     reading: str
     spending_habits: list[str]
     projected_habits: list[str]
+    tradeoffs: list[str]
     educations: list[EducationOut]
     suggestions: list[SuggestionOut]
     recommendations: list[RecommendationOut]

@@ -16,6 +16,7 @@ function render(ui) {
 const portrait = {
   reading: 'Friday takeaway is becoming the month.',
   spending_habits: ['Coffee every weekday'],
+  tradeoffs: ['£12 on Greggs could have been another Steam game'],
   projected_habits: ['Eating out will pass the budget'],
   educations: [{ id: 'e1', subject: 'Budgeting basics', body: 'The Friday orders are the leak.' }],
   suggestions: [{ id: 's1', body: 'Keep Friday under £20.' }],
@@ -30,6 +31,8 @@ describe('Spending habits page', () => {
     expect(await screen.findByRole('img', { name: 'Pennie' })).toBeInTheDocument()
     expect(screen.getByText('Friday takeaway is becoming the month.')).toBeInTheDocument()
     expect(screen.getByText('Coffee every weekday')).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Trade-offs' })).toBeInTheDocument()
+    expect(screen.getByText('£12 on Greggs could have been another Steam game')).toBeInTheDocument()
     expect(screen.getByText('Eating out will pass the budget')).toBeInTheDocument()
     expect(screen.getByText(/Budgeting basics/)).toBeInTheDocument()
     expect(screen.getByText('The Friday orders are the leak.')).toBeInTheDocument()

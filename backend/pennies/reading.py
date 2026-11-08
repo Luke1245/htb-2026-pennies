@@ -1,6 +1,7 @@
 import uuid
 from dataclasses import dataclass
 from datetime import datetime
+from decimal import Decimal
 
 from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
@@ -30,6 +31,7 @@ SANITISED = "sanitised"
 GEMINI = "gemini"
 SPENDING = "spending"
 PROJECTED = "projected"
+TRADEOFF = "tradeoff"
 
 
 @dataclass(frozen=True)
@@ -58,6 +60,7 @@ class ReadingDraft:
     reading: str
     spending_habits: list[str]
     projected_habits: list[str]
+    tradeoffs: list[str]
     educations: list[EducationDraft]
     suggestions: list[SuggestionDraft]
     recommendations: list[RecommendationDraft]
@@ -163,6 +166,7 @@ def _ledger_reading(db: Session, user_sub: str, now: datetime) -> dict | None:
             f"£{money_str(amount)} went to {name} this month." for name, amount in parts[:3]
         ],
         "projected_habits": [],
+        "tradeoffs": [],
         "educations": [
             {
                 "id": education_id,
@@ -247,7 +251,7 @@ def _payload(db: Session, user_sub: str, now: datetime, mode: str) -> dict:
             accounts.append({"name": account.name, "calculated_balance": money_str(balance)})
         else:
             accounts.append({"calculated_balance": money_str(balance)})
-    return {
+    payload = {
         "sharing_mode": mode,
         "current_month": {"year": month.year, "month": month.month},
         "monthly_budget": None if figures["monthly_budget"] is None else money_str(figures["monthly_budget"]),
@@ -275,6 +279,44 @@ def _payload(db: Session, user_sub: str, now: datetime, mode: str) -> dict:
             for resource in list_resources()
         ],
     }
+    facts = _tradeoff_facts(transactions, month, mode)
+    if facts is not None:
+        payload["tradeoff_facts"] = facts
+    return payload
+
+
+def _tradeoff_facts(transactions, month: YearMonth, mode: str) -> dict | None:
+    label = f"{month.year:04d}-{month.month:02d}"
+    treat_total = Decimal("0.00")
+    treat_category = None
+    hobbies: dict[str, Decimal] = {}
+    hobby_category = None
+    for transaction in transactions:
+        if transaction.amount >= 0:
+            continue
+        occurred = as_utc(transaction.occurred_at).astimezone(LONDON)
+        if f"{occurred.year:04d}-{occurred.month:02d}" != label:
+            continue
+        spent = -transaction.amount
+        if transaction.category.casefold() == "eating out":
+            treat_total += spent
+            treat_category = transaction.category
+        elif transaction.category.casefold() == "entertainment":
+            name = transaction.vendor if mode == RAW and transaction.vendor else "Entertainment"
+            hobbies[name] = hobbies.get(name, Decimal("0.00")) + spent
+            hobby_category = transaction.category
+    if treat_total <= 0 or not hobbies or treat_category is None or hobby_category is None:
+        return None
+    hobby_name, hobby_total = max(hobbies.items(), key=lambda item: item[1])
+    facts = {
+        "treat_category": treat_category,
+        "treat_total": money_str(treat_total),
+        "hobby_category": hobby_category,
+        "hobby_total": money_str(hobby_total),
+    }
+    if mode == RAW:
+        facts["hobby_vendor"] = hobby_name
+    return facts
 
 
 def _transaction_view(transaction: Transaction, mode: str) -> dict:
@@ -351,6 +393,8 @@ def _store_portrait(db: Session, user_sub: str, mode: str, draft: ReadingDraft) 
         db.add(Habit(portrait_id=portrait.id, kind=SPENDING, description=description))
     for description in _clean_lines(draft.projected_habits):
         db.add(Habit(portrait_id=portrait.id, kind=PROJECTED, description=description))
+    for description in _clean_lines(draft.tradeoffs):
+        db.add(Habit(portrait_id=portrait.id, kind=TRADEOFF, description=description))
     stored_educations = []
     for subject, guide_id, body in educations:
         education = EducationItem(portrait_id=portrait.id, subject=subject, guide_id=guide_id, body=body)
@@ -459,6 +503,7 @@ def _portrait_out(db: Session, user_sub: str) -> dict | None:
         "reading": portrait.reading,
         "spending_habits": [habit.description for habit in habits if habit.kind == SPENDING],
         "projected_habits": [habit.description for habit in habits if habit.kind == PROJECTED],
+        "tradeoffs": [habit.description for habit in habits if habit.kind == TRADEOFF],
         "educations": [
             {
                 "id": education.id,

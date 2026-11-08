@@ -34,6 +34,7 @@ class FakeReader:
             reading="Shops little and often.",
             spending_habits=["Regular grocery shops"],
             projected_habits=["Grocery spending could keep rising"],
+            tradeoffs=["£6 on small treats could have been another game they already buy."],
             educations=[
                 EducationDraft("Budgeting basics", "budgeting-basics", "The grocery shops fit a small budget."),
                 EducationDraft("Eating out", None, "Eating out is not the pattern here."),
@@ -106,6 +107,9 @@ def test_gemini_assigns_once_and_a_user_edit_sticks():
     assert built.json()["updated"] is True
     assert built.json()["stored"] is True
     assert built.json()["reading"]["spending_habits"] == ["Regular grocery shops"]
+    assert built.json()["reading"]["tradeoffs"] == [
+        "£6 on small treats could have been another game they already buy."
+    ]
     assert built.json()["reading"]["suggestions"][0]["body"].startswith("Keep the grocery")
     categorised = client.get("/transactions").json()["transactions"][0]
     assert categorised["category"] == "Groceries"
@@ -259,6 +263,8 @@ def test_gemini_client_reads_structured_json(monkeypatch):
             text = '{"category": "Transport"}'
         else:
             assert "one or two short sentences" in prompt
+            assert "own spending" in prompt
+            assert "trade-off" in prompt
             assert "lack of logged transactions" in prompt
             assert json["generationConfig"]["temperature"] == 0.6
             assert json["generationConfig"]["maxOutputTokens"] == 4096
@@ -283,6 +289,7 @@ def test_gemini_client_keeps_the_lesson_short(monkeypatch):
         text = (
             '{"reading":"  Rent comes first. Lunches are the leak. The rest can wait.  ",'
             '"spending_habits":["One","Two","Three","Four"],'
+            '"tradeoffs":["Treats","Hobby","Extra"],'
             '"projected_habits":["Watch one","Watch two","Watch three"],'
             '"educations":['
             '{"subject":"A","guide_id":"","body":"First lesson."},'
@@ -306,9 +313,45 @@ def test_gemini_client_keeps_the_lesson_short(monkeypatch):
     draft = GeminiReader("secret", "gemini-3.5-flash").read({})
     assert draft.reading == "Rent comes first. Lunches are the leak."
     assert draft.spending_habits == ["One", "Two", "Three"]
+    assert draft.tradeoffs == ["Treats", "Hobby"]
     assert draft.projected_habits == ["Watch one", "Watch two"]
     assert [item.subject for item in draft.educations] == ["A", "B"]
     assert [item.body for item in draft.suggestions] == ["Do one thing.", "Do another."]
+
+
+def test_tradeoff_facts_name_the_hobby_they_already_buy():
+    class Reader(FakeReader):
+        def categorise(self, facts):
+            self.facts.append(facts)
+            if facts["vendor"] == "Steam":
+                return "Entertainment"
+            if facts["vendor"] == "Greggs":
+                return "Eating out"
+            return "Groceries"
+
+    reader = Reader()
+    client, _holder = make_client(reader=reader)
+    cash = account(client)
+    for amount, vendor in (("-3.60", "Greggs"), ("-4.20", "Greggs"), ("-6.99", "Steam")):
+        created = client.post(
+            "/transactions",
+            json={
+                "account_id": cash["id"],
+                "amount": amount,
+                "vendor": vendor,
+                "occurred_at": "2026-11-02T10:00:00+00:00",
+            },
+        )
+        assert created.status_code == 200, created.text
+
+    client.post("/reading")
+    assert reader.payloads[-1]["tradeoff_facts"] == {
+        "treat_category": "Eating out",
+        "treat_total": "7.80",
+        "hobby_category": "Entertainment",
+        "hobby_total": "6.99",
+        "hobby_vendor": "Steam",
+    }
 
 
 def json_dumps_reading():

@@ -9,7 +9,7 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from pennies.auth import require_user
 from pennies.db import ensure_schema, make_engine, make_session_factory, session_scope
 from pennies.errors import DomainError
-from pennies.budgets import get_budget, set_budget
+from pennies.budgets import clear_budget, get_budget, set_budget
 from pennies.calendar import YearMonth
 from pennies.categories import add_category, category_names, list_categories, rename_category
 from pennies.dashboard import dashboard
@@ -309,7 +309,11 @@ def create_app(database_url: str | None = None, clock=None, reader=None) -> Fast
         db=Depends(get_db),
         user_sub: str = Depends(get_current_user),
     ):
-        budget = set_budget(db, user_sub, YearMonth(year, month), body.amount)
+        period = YearMonth(year, month)
+        if body.amount is None:
+            clear_budget(db, user_sub, period)
+            return {"year": year, "month": month, "amount": None}
+        budget = set_budget(db, user_sub, period, body.amount)
         return {"year": budget.year, "month": budget.month, "amount": budget.amount}
 
     @app.get("/monthly-budgets/{year}/{month}", response_model=BudgetOut)

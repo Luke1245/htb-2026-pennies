@@ -270,6 +270,10 @@ export default function SpendingHabitsPage({ loadPortrait, onBack, onLogout, isA
               <HabitCards items={portrait.spending_habits || []} empty="No spending habits yet" />
             </section>
             <section className="habit-section">
+              <h3>Trade-offs</h3>
+              <HabitCards items={portrait.tradeoffs || []} empty="No trade-off yet" />
+            </section>
+            <section className="habit-section">
               <h3>If this keeps going</h3>
               <HabitCards items={portrait.projected_habits || []} empty="Nothing to watch yet" />
             </section>
