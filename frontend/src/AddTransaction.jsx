@@ -185,6 +185,26 @@ export function AddTransaction({
         )}
       </div>
       <label>
+        <span className="field-name">
+          Category
+          <svg className="ai-mark" viewBox="0 0 32 22" aria-hidden="true">
+            <path
+              fill="currentColor"
+              transform="translate(0 2.6) scale(0.74)"
+              d="M12 0C12 6.627 6.627 12 0 12 6.627 12 12 17.373 12 24 12 17.373 17.373 12 24 12 17.373 12 12 6.627 12 0Z"
+            />
+            <path
+              fill="currentColor"
+              transform="translate(18.2 0) scale(0.42)"
+              d="M12 0C12 6.627 6.627 12 0 12 6.627 12 12 17.373 12 24 12 17.373 17.373 12 24 12 17.373 12 12 6.627 12 0Z"
+            />
+          </svg>
+        </span>
+        <select disabled defaultValue="">
+          <option value="" />
+        </select>
+      </label>
+      <label>
         Date
         <input
           type="date"

@@ -133,6 +133,25 @@
   font-weight: 600;
 }
 
+.field-name {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.ai-mark {
+  display: block;
+  width: 28px;
+  height: 19px;
+}
+
+.record-form select:disabled {
+  background: #eef2ee;
+  border-color: #d7e6d6;
+  color: #8aa08e;
+  cursor: default;
+}
+
 .record-form input,
 .record-form select,
 .record-form textarea {
