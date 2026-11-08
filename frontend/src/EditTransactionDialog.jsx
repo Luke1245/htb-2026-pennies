@@ -155,10 +155,10 @@ export function EditTransactionDialog({
             </label>
           </>
         )}
-        <fieldset>
-          <legend>{isTransfer ? 'Amount' : 'Direction'}</legend>
-          {!isTransfer && (
-            <>
+        {!isTransfer && (
+          <fieldset className="direction">
+            <legend>Direction</legend>
+            <div className="direction-choices">
               <label>
                 <input
                   type="radio"
@@ -179,18 +179,17 @@ export function EditTransactionDialog({
                 />
                 Outflow
               </label>
-            </>
-          )}
-          <label>
-            £
-            <input
-              inputMode="decimal"
-              value={amount}
-              aria-label="Amount"
-              onChange={(event) => setAmount(event.target.value)}
-            />
-          </label>
-        </fieldset>
+            </div>
+          </fieldset>
+        )}
+        <label>
+          Amount
+          <input
+            inputMode="decimal"
+            value={amount}
+            onChange={(event) => setAmount(event.target.value)}
+          />
+        </label>
         <FieldErrors fieldErrors={fieldErrors} />
         <label>
           Date
