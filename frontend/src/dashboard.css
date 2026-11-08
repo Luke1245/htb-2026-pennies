@@ -556,6 +556,117 @@ select option:checked {
   font-size: 13px;
 }
 
+.transaction-note {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 40ch;
+}
+
+.transactions-layout {
+  display: grid;
+  grid-template-columns: 240px 1fr;
+  gap: 24px;
+  align-items: start;
+}
+
+.account-sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.account-row {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid #acd990;
+  border-radius: 8px;
+  background: #fff;
+  color: #112114;
+  font: inherit;
+  font-size: 15px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.account-row:focus-visible {
+  outline: 3px solid #487853;
+  outline-offset: 3px;
+}
+
+.account-row.active {
+  border-color: #487853;
+  background: #eef2ee;
+  font-weight: 600;
+}
+
+.account-row.all-accounts .account-row-name {
+  font-weight: 700;
+}
+
+.account-row-name {
+  font-weight: 600;
+}
+
+.account-row-balance {
+  color: #487853;
+  font-size: 13px;
+}
+
+.transaction-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.edit-transaction {
+  font: inherit;
+  font-size: 14px;
+  padding: 4px 10px;
+  border-radius: 6px;
+  color: #112114;
+  background: #fff;
+  border: 1px solid #487853;
+  cursor: pointer;
+}
+
+.edit-transaction:focus-visible {
+  outline: 3px solid #487853;
+  outline-offset: 3px;
+}
+
+.dialog {
+  width: min(460px, 100%);
+  padding: 26px;
+  border: 1px solid #acd990;
+  border-radius: 8px;
+  background: #fff;
+}
+
+.dialog h3 {
+  margin: 0;
+  color: #112114;
+}
+
+.field-error {
+  margin: 0;
+  color: #8a2b2b;
+  font-size: 14px;
+}
+
+.dialog-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgba(17, 33, 20, 0.5);
+}
+
 .guides {
   margin-top: 32px;
 }
@@ -738,6 +849,20 @@ select option:checked {
 
   .dashboard-main {
     padding: 24px 18px;
+  }
+
+  .transactions-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .account-sidebar {
+    flex-direction: row;
+    flex-wrap: wrap;
+  }
+
+  .account-row {
+    width: auto;
+    flex: 1 1 140px;
   }
 
   .banner {
