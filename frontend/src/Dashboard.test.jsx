@@ -18,6 +18,7 @@ function renderAt(path) {
       { path: '/guides/:guideId', element: <GuidePage /> },
       { path: '/spending-habits', element: <h2>Spending habits</h2> },
       { path: '/recommendations', element: <h2>Recommendations</h2> },
+      { path: '/accounts', element: <h2>Accounts</h2> },
     ],
     { initialEntries: [path] },
   )
@@ -140,6 +141,20 @@ test('badges the guides named in the current portrait recommendations', async ()
   expect(within(budgeting).queryByText('Recommended')).not.toBeInTheDocument()
   const scam = screen.getByRole('button', { name: /scam avoidance/i })
   expect(within(scam).getByText('Recommended')).toBeInTheDocument()
+})
+
+test('Accounts sits beside Log out', async () => {
+  const user = userEvent.setup()
+  const router = renderDashboard()
+
+  const banner = await screen.findByRole('banner')
+  expect(within(banner).getByRole('link', { name: 'Accounts' })).toBeInTheDocument()
+  expect(within(banner).getByRole('button', { name: 'Log out' })).toBeInTheDocument()
+
+  await user.click(within(banner).getByRole('link', { name: 'Accounts' }))
+
+  expect(router.state.location.pathname).toBe('/accounts')
+  expect(screen.getByRole('heading', { name: 'Accounts' })).toBeInTheDocument()
 })
 
 test('links to the Recommendations screen', async () => {

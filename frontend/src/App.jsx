@@ -2,6 +2,7 @@ import { useAuth0 } from '@auth0/auth0-react'
 import { BrowserRouter, Navigate, Route, Routes, useNavigate } from 'react-router'
 import './dashboard.css'
 import './App.css'
+import AccountsPage from './AccountsPage.jsx'
 import Dashboard from './Dashboard.jsx'
 import { GuidePage } from './Guides.jsx'
 import RecommendationsPage from './RecommendationsPage.jsx'
@@ -45,6 +46,7 @@ function AuthedScreens() {
   return (
     <Routes>
       <Route path="/" element={<Dashboard />} />
+      <Route path="/accounts" element={<AccountsPage />} />
       <Route path="/spending-habits" element={<SpendingHabitsScreen />} />
       <Route path="/recommendations" element={<RecommendationsScreen />} />
       <Route path="/guides/:guideId" element={<GuidePage />} />

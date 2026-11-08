@@ -1,5 +1,6 @@
 import { StrictMode } from 'react'
-import { act, fireEvent, render, screen } from '@testing-library/react'
+import { act, fireEvent, render as renderWithTestingLibrary, screen } from '@testing-library/react'
+import { MemoryRouter } from 'react-router'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 import SpendingHabitsPage from '../SpendingHabitsPage.jsx'
@@ -7,6 +8,10 @@ import SpendingHabitsPage from '../SpendingHabitsPage.jsx'
 vi.mock('@auth0/auth0-react', () => ({
   useAuth0: () => ({ getAccessTokenSilently: vi.fn() }),
 }))
+
+function render(ui) {
+  return renderWithTestingLibrary(<MemoryRouter>{ui}</MemoryRouter>)
+}
 
 const portrait = {
   reading: 'Friday takeaway is becoming the month.',

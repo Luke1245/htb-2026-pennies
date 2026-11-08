@@ -45,6 +45,7 @@
   background: transparent;
   border: 1px solid #487853;
   cursor: pointer;
+  text-decoration: none;
 }
 
 .banner h1 {
@@ -185,6 +186,57 @@
   justify-content: space-between;
   gap: 12px;
   margin-bottom: 12px;
+}
+
+.page-heading {
+  margin: 0 0 20px;
+  color: #112114;
+  font-size: 28px;
+}
+
+.manage-section {
+  margin-bottom: 16px;
+}
+
+.manage-section h3 {
+  margin: 0;
+}
+
+.manage-list {
+  list-style: none;
+  margin: 16px 0 0;
+  padding: 0;
+}
+
+.manage-list li {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  gap: 8px 16px;
+  align-items: center;
+  padding: 12px 0;
+  border-top: 1px solid #acd990;
+}
+
+.manage-list li span small {
+  display: block;
+  margin-top: 4px;
+  color: #487853;
+  font-size: 13px;
+}
+
+.manage-list select,
+.manage-list input {
+  margin-left: 8px;
+  border: 1px solid #acd990;
+  border-radius: 6px;
+  padding: 7px 10px;
+  background: #fff;
+  color: #112114;
+  font: inherit;
+}
+
+.manage-list .record-form {
+  grid-column: 1 / -1;
 }
 
 .tile-heading h2 {
@@ -580,6 +632,10 @@
 
   .banner {
     padding: 18px;
+  }
+
+  .manage-list li {
+    grid-template-columns: 1fr;
   }
 }
 

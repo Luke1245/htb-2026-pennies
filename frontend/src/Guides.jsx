@@ -1,4 +1,4 @@
-import { Navigate, useNavigate, useParams } from 'react-router'
+import { Link, Navigate, useNavigate, useParams } from 'react-router'
 import { useAuth0 } from '@auth0/auth0-react'
 import { guides } from './guides.js'
 
@@ -12,13 +12,18 @@ export function GuidePage() {
     <div className="dashboard">
       <header className="banner">
         <h1>Pennies</h1>
-        <button
-          type="button"
-          className="logout"
-          onClick={() => logout({ logoutParams: { returnTo: window.location.origin } })}
-        >
-          Log out
-        </button>
+        <div className="banner-actions">
+          <Link to="/accounts" className="logout">
+            Accounts
+          </Link>
+          <button
+            type="button"
+            className="logout"
+            onClick={() => logout({ logoutParams: { returnTo: window.location.origin } })}
+          >
+            Log out
+          </button>
+        </div>
       </header>
       <main className="dashboard-main">
         <GuideView guide={guide} onBack={() => navigate('/')} />

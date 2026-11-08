@@ -6,7 +6,7 @@ from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
 from pennies.calendar import LONDON, YearMonth, as_utc
-from pennies.categories import ORDINARY_CATEGORIES, OTHER
+from pennies.categories import ORDINARY_CATEGORIES, OTHER, category_names
 from pennies.dashboard import dashboard
 from pennies.errors import DomainError
 from pennies.guides import get_guide, guide_ids, list_guides
@@ -92,18 +92,22 @@ def set_sharing_mode(db: Session, user_sub: str, mode: str) -> str:
     return preference.mode
 
 
-def assigned_category(reader, facts: dict, cache: dict | None = None) -> tuple[str, str | None]:
-    key = (facts.get("vendor"), facts.get("note"), facts.get("amount"))
+def assigned_category(
+    reader, facts: dict, cache: dict | None = None, allowed: tuple[str, ...] | None = None
+) -> tuple[str, str | None]:
+    choices = tuple(allowed) if allowed else ORDINARY_CATEGORIES
+    key = (facts.get("vendor"), facts.get("note"), facts.get("amount"), choices)
     if cache is not None and key in cache:
         return cache[key], GEMINI
+    payload = dict(facts)
+    payload["categories"] = list(choices)
     try:
-        category = reader.categorise(facts)
+        category = reader.categorise(payload)
     except Exception:
-        return OTHER, None
-    if not isinstance(category, str) or category not in ORDINARY_CATEGORIES:
-        if category is None:
-            return OTHER, None
-        category = OTHER
+        category = None
+    if not isinstance(category, str) or category not in choices:
+        category = OTHER if OTHER in choices else choices[0]
+        return category, None
     if cache is not None:
         cache[key] = category
     return category, GEMINI
@@ -198,6 +202,7 @@ def _categorise_unset(db: Session, user_sub: str, reader) -> None:
         category, source = assigned_category(
             reader,
             transaction_facts(transaction.vendor or "", transaction.amount, transaction.note, transaction.occurred_at),
+            allowed=category_names(db, user_sub),
         )
         if source is None:
             continue

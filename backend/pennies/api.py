@@ -11,6 +11,7 @@ from pennies.db import ensure_schema, make_engine, make_session_factory, session
 from pennies.errors import DomainError
 from pennies.budgets import get_budget, set_budget
 from pennies.calendar import YearMonth
+from pennies.categories import add_category, category_names, list_categories, rename_category
 from pennies.dashboard import dashboard
 from pennies.money import money_str
 from pennies.ledger import (
@@ -23,6 +24,7 @@ from pennies.ledger import (
     create_transfer,
     list_accounts,
     list_transactions,
+    update_account,
     reconcile,
     update_category,
 )
@@ -46,6 +48,9 @@ from pennies.subscriptions import (
 from pennies.schemas import (
     AccountIn,
     AccountOut,
+    AccountPatch,
+    CategoryIn,
+    CategoryOut,
     BudgetIn,
     BudgetOut,
     DashboardOut,
@@ -121,6 +126,41 @@ def create_app(database_url: str | None = None, clock=None, reader=None) -> Fast
         account = create_account(db, user_sub, NewAccount(body.name, body.opening_balance))
         return _account_out(account, body.opening_balance)
 
+    @app.patch("/accounts/{account_id}", response_model=AccountOut)
+    def patch_account(
+        account_id: UUID,
+        body: AccountPatch,
+        db=Depends(get_db),
+        user_sub: str = Depends(get_current_user),
+    ):
+        account, balance = update_account(
+            db, user_sub, account_id, body.name, body.opening_balance
+        )
+        return _account_out(account, balance)
+
+    @app.get("/categories", response_model=list[CategoryOut])
+    def get_categories(db=Depends(get_db), user_sub: str = Depends(get_current_user)):
+        return [{"id": category.id, "name": category.name} for category in list_categories(db, user_sub)]
+
+    @app.post("/categories", response_model=CategoryOut)
+    def post_category(
+        body: CategoryIn,
+        db=Depends(get_db),
+        user_sub: str = Depends(get_current_user),
+    ):
+        category = add_category(db, user_sub, body.name)
+        return {"id": category.id, "name": category.name}
+
+    @app.patch("/categories/{category_id}", response_model=CategoryOut)
+    def patch_category(
+        category_id: UUID,
+        body: CategoryIn,
+        db=Depends(get_db),
+        user_sub: str = Depends(get_current_user),
+    ):
+        category = rename_category(db, user_sub, category_id, body.name)
+        return {"id": category.id, "name": category.name}
+
     @app.get("/accounts", response_model=list[AccountOut])
     def get_accounts(db=Depends(get_db), user_sub: str = Depends(get_current_user)):
         return [
@@ -138,6 +178,7 @@ def create_app(database_url: str | None = None, clock=None, reader=None) -> Fast
             request.app.state.reader,
             transaction_facts(body.vendor, body.amount, body.note, body.occurred_at),
             request.app.state.category_cache,
+            category_names(db, user_sub),
         )
         return create_transaction(
             db,
@@ -157,7 +198,8 @@ def create_app(database_url: str | None = None, clock=None, reader=None) -> Fast
     def post_category_suggestion(
         body: CategorySuggestionIn,
         request: Request,
-        _user_sub: str = Depends(get_current_user),
+        db=Depends(get_db),
+        user_sub: str = Depends(get_current_user),
     ):
         facts = {"vendor": body.vendor, "note": body.note}
         if body.amount is not None:
@@ -166,6 +208,7 @@ def create_app(database_url: str | None = None, clock=None, reader=None) -> Fast
             request.app.state.reader,
             facts,
             request.app.state.category_cache,
+            category_names(db, user_sub),
         )
         return {"category": category}
 
