@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useAuth0 } from '@auth0/auth0-react'
 import { Link, useNavigate } from 'react-router'
 import { apiUrl, authHeaders } from './api.js'
+import { movementName } from './movementName.js'
 
 function pounds(value) {
   const amount = Number(value)
@@ -126,7 +127,7 @@ export default function TransactionsPage() {
           {transactions.map((transaction) => (
             <li key={transaction.id}>
               <span>
-                {transaction.vendor || transaction.category}
+                {movementName(transaction)}
                 <small>
                   {transaction.vendor ? `${transaction.category} · ` : ''}
                   {whenLabel(transaction.occurred_at)}
@@ -136,7 +137,7 @@ export default function TransactionsPage() {
               <button
                 type="button"
                 className="delete-transaction"
-                aria-label={`Delete ${transaction.vendor || transaction.category}`}
+                aria-label={`Delete ${movementName(transaction)}`}
                 disabled={deletingId === transaction.id}
                 onClick={() => removeTransaction(transaction)}
               >

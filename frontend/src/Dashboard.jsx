@@ -4,11 +4,14 @@ import { Link, useNavigate } from 'react-router'
 import './dashboard.css'
 import { AddAccount } from './AddAccount.jsx'
 import { AddTransaction } from './AddTransaction.jsx'
+import { AddTransfer } from './AddTransfer.jsx'
 import { apiUrl, authHeaders } from './api.js'
+import { movementName } from './movementName.js'
 import { GuideCards } from './Guides.jsx'
 import { guides } from './guides.js'
 
 const recordedMessage = 'Transaction recorded'
+const transferRecordedMessage = 'Transfer recorded'
 const accountRecordedMessage = 'Account recorded'
 const loadMessage = 'Pennies could not load your records'
 
@@ -42,14 +45,15 @@ export default function Dashboard({ name }) {
   const [status, setStatus] = useState('')
   const [accounts, setAccounts] = useState([])
   const [formOpen, setFormOpen] = useState(false)
+  const [transferFormOpen, setTransferFormOpen] = useState(false)
   const [accountFormOpen, setAccountFormOpen] = useState(false)
   const [reloadKey, setReloadKey] = useState(0)
   const [recommendedGuideIds, setRecommendedGuideIds] = useState([])
   const [deletingId, setDeletingId] = useState('')
-  const recorded = useRef(false)
+  const recordedLabel = useRef('')
 
   useEffect(() => {
-    const afterRecord = recorded.current
+    const afterRecord = recordedLabel.current
     let cancelled = false
 
     async function load() {
@@ -89,7 +93,7 @@ export default function Dashboard({ name }) {
 
     load().catch(() => {
       if (!cancelled) {
-        setStatus(afterRecord ? `${recordedMessage}. ${loadMessage}` : loadMessage)
+        setStatus(afterRecord ? `${afterRecord}. ${loadMessage}` : loadMessage)
       }
     })
     loadRecommendedGuides()
@@ -101,6 +105,7 @@ export default function Dashboard({ name }) {
   function openAccountForm() {
     if (accountFormOpen) return
     setFormOpen(false)
+    setTransferFormOpen(false)
     setStatus('')
     setAccountFormOpen(true)
   }
@@ -140,6 +145,7 @@ export default function Dashboard({ name }) {
   async function openForm() {
     if (formOpen) return
     setAccountFormOpen(false)
+    setTransferFormOpen(false)
     try {
       const headers = await authHeaders(getAccessTokenSilently)
       const response = await fetch(`${apiUrl}/accounts`, { headers })
@@ -150,7 +156,7 @@ export default function Dashboard({ name }) {
         setStatus('An Account is needed.')
         return
       }
-      recorded.current = false
+      recordedLabel.current = ''
       setAccounts(list)
       setStatus('')
       setFormOpen(true)
@@ -164,10 +170,46 @@ export default function Dashboard({ name }) {
     setFormOpen(false)
   }
 
+  async function openTransfer() {
+    if (transferFormOpen) return
+    setFormOpen(false)
+    setAccountFormOpen(false)
+    try {
+      const headers = await authHeaders(getAccessTokenSilently)
+      const response = await fetch(`${apiUrl}/accounts`, { headers })
+      if (!response.ok) throw new Error(loadMessage)
+      const list = await response.json()
+      if (list.length < 2) {
+        setTransferFormOpen(false)
+        setStatus('Two Accounts are needed.')
+        return
+      }
+      recordedLabel.current = ''
+      setAccounts(list)
+      setStatus('')
+      setTransferFormOpen(true)
+    } catch {
+      setTransferFormOpen(false)
+      setStatus(loadMessage)
+    }
+  }
+
+  function closeTransfer() {
+    setTransferFormOpen(false)
+  }
+
   function handleRecorded() {
-    recorded.current = true
+    recordedLabel.current = recordedMessage
     setFormOpen(false)
     setStatus(recordedMessage)
+    setReloadKey((key) => key + 1)
+    window.dispatchEvent(new Event('pennies:transactions-changed'))
+  }
+
+  function handleTransferRecorded() {
+    recordedLabel.current = transferRecordedMessage
+    setTransferFormOpen(false)
+    setStatus(transferRecordedMessage)
     setReloadKey((key) => key + 1)
     window.dispatchEvent(new Event('pennies:transactions-changed'))
   }
@@ -249,7 +291,7 @@ export default function Dashboard({ name }) {
                   </Link>
                 </section>
                 <section className="tile">
-                  {!formOpen && !accountFormOpen && (
+                  {!formOpen && !transferFormOpen && !accountFormOpen && (
                     <div className="tile-heading">
                       <h2>Recent transactions</h2>
                       <div className="tile-actions">
@@ -259,6 +301,9 @@ export default function Dashboard({ name }) {
                           onClick={openAccountForm}
                         >
                           Add account
+                        </button>
+                        <button type="button" className="add-transfer" onClick={openTransfer}>
+                          Transfer
                         </button>
                         <button type="button" className="add-transaction" onClick={openForm}>
                           Add transaction
@@ -271,6 +316,14 @@ export default function Dashboard({ name }) {
                       getAccessTokenSilently={getAccessTokenSilently}
                       onRecorded={handleAccountRecorded}
                       onCancel={closeAccountForm}
+                    />
+                  )}
+                  {transferFormOpen && (
+                    <AddTransfer
+                      accounts={accounts}
+                      getAccessTokenSilently={getAccessTokenSilently}
+                      onRecorded={handleTransferRecorded}
+                      onCancel={closeTransfer}
                     />
                   )}
                   {formOpen && (
@@ -288,7 +341,7 @@ export default function Dashboard({ name }) {
                       {transactions.slice(0, 3).map((transaction) => (
                         <li key={transaction.id}>
                           <span>
-                            {transaction.vendor || transaction.category}
+                            {movementName(transaction)}
                             <small>
                               {transaction.vendor ? `${transaction.category} · ` : ''}
                               {whenLabel(transaction.occurred_at)}
@@ -298,7 +351,7 @@ export default function Dashboard({ name }) {
                           <button
                             type="button"
                             className="delete-transaction"
-                            aria-label={`Delete ${transaction.vendor || transaction.category}`}
+                            aria-label={`Delete ${movementName(transaction)}`}
                             disabled={deletingId === transaction.id}
                             onClick={() => removeTransaction(transaction)}
                           >
