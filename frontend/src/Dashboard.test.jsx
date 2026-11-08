@@ -336,6 +336,93 @@ test('user records an outflow and the dashboard shows it was recorded', async ()
   expect(post.options.headers.Authorization).toBe('Bearer test-token')
 })
 
+test('user transfers money between two Accounts without counting it as spending', async () => {
+  const user = userEvent.setup()
+  let lists = 0
+  const calls = renderRecords((call) => {
+    if (call.url.endsWith('/accounts')) {
+      return ok([
+        { id: 'cash', name: 'Cash' },
+        { id: 'bank', name: 'Bank' },
+      ])
+    }
+    if (call.url.endsWith('/transfers') && call.options.method === 'POST') {
+      return ok({ id: 'transfer-1' })
+    }
+    if (call.url.includes('/transactions')) {
+      lists += 1
+      return ok({
+        transactions:
+          lists === 1
+            ? []
+            : [
+                {
+                  id: 'tx-out',
+                  account_id: 'cash',
+                  vendor: null,
+                  category: 'Other',
+                  kind: 'transfer',
+                  occurred_at: '2026-11-03T00:00:00+00:00',
+                  amount: '-20.00',
+                },
+                {
+                  id: 'tx-in',
+                  account_id: 'bank',
+                  vendor: null,
+                  category: 'Other',
+                  kind: 'transfer',
+                  occurred_at: '2026-11-03T00:00:00+00:00',
+                  amount: '20.00',
+                },
+              ],
+      })
+    }
+    return ok({
+      spent_this_month: '18.40',
+      left_to_spend: '80.00',
+      categories: [{ name: 'Groceries', amount: '18.40' }],
+    })
+  })
+
+  await user.click(await screen.findByRole('button', { name: 'Transfer' }))
+  await user.type(screen.getByLabelText('Amount'), '20')
+  fireEvent.change(screen.getByLabelText('Date'), { target: { value: '2026-11-03' } })
+  await user.click(screen.getByRole('button', { name: 'Transfer' }))
+
+  expect(await screen.findByText('Transfer recorded')).toBeInTheDocument()
+  expect(screen.getAllByRole('button', { name: 'Delete Transfer' })).toHaveLength(2)
+  expect(screen.getByText('Cash · 3 Nov')).toBeInTheDocument()
+  expect(screen.getByText('Bank · 3 Nov')).toBeInTheDocument()
+  expect(screen.getByText('-£20.00')).toBeInTheDocument()
+  expect(screen.getByText('+£20.00')).toBeInTheDocument()
+  expect(screen.getAllByText('£18.40')).toHaveLength(2)
+  expect(screen.queryByLabelText('From')).not.toBeInTheDocument()
+
+  const post = calls.find((call) => call.options.method === 'POST')
+  expect(post.url).toMatch(/\/transfers$/)
+  expect(JSON.parse(post.options.body)).toEqual({
+    from_account_id: 'cash',
+    to_account_id: 'bank',
+    amount: '20.00',
+    note: null,
+    occurred_at: '2026-11-03T00:00:00',
+  })
+})
+
+test('two Accounts are required before a transfer opens', async () => {
+  const user = userEvent.setup()
+  renderRecords((call) => {
+    if (call.url.endsWith('/accounts')) return ok([{ id: 'cash', name: 'Cash' }])
+    if (call.url.includes('/transactions')) return ok({ transactions: [] })
+    return ok({ spent_this_month: '0.00', left_to_spend: '0.00', categories: [] })
+  })
+
+  await user.click(await screen.findByRole('button', { name: 'Transfer' }))
+
+  expect(screen.getByText('Two Accounts are needed.')).toBeInTheDocument()
+  expect(screen.queryByLabelText('From')).not.toBeInTheDocument()
+})
+
 test('a failed reload still says the Transaction was recorded', async () => {
   const user = userEvent.setup()
   let dashboards = 0
@@ -484,10 +571,12 @@ test('recent transactions shows three entries and opens the transactions screen'
           subscriptions: '0.00',
         })
       }
+      if (path.endsWith('/accounts')) return json([{ id: 'acc-1', name: 'Monzo' }])
       if (path.includes('/transactions')) {
         return json({
           transactions: ['Tesco', 'Pret', 'Cafe', 'Old shop'].map((vendor, index) => ({
             id: `tx-${index}`,
+            account_id: 'acc-1',
             vendor,
             category: 'Groceries',
             occurred_at: '2026-11-08T00:00:00+00:00',
@@ -502,6 +591,7 @@ test('recent transactions shows three entries and opens the transactions screen'
   const router = renderAt('/')
 
   expect(await screen.findByText('Tesco')).toBeInTheDocument()
+  expect(screen.getAllByText('Monzo · Groceries · 8 Nov')).toHaveLength(3)
   expect(screen.getByText('Pret')).toBeInTheDocument()
   expect(screen.getByText('Cafe')).toBeInTheDocument()
   expect(screen.queryByText('Old shop')).not.toBeInTheDocument()

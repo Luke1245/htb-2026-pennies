@@ -15,9 +15,10 @@ function json(body) {
   return { ok: true, json: async () => body }
 }
 
-function transaction(id, vendor) {
+function transaction(id, vendor, accountId = 'cash') {
   return {
     id,
+    account_id: accountId,
     vendor,
     category: 'Groceries',
     occurred_at: '2026-11-02T10:00:00+00:00',
@@ -25,6 +26,11 @@ function transaction(id, vendor) {
     kind: 'ordinary',
   }
 }
+
+const accounts = [
+  { id: 'cash', name: 'Cash' },
+  { id: 'bank', name: 'Bank' },
+]
 
 test('lists every transaction and returns to the dashboard', async () => {
   const user = userEvent.setup()
@@ -34,15 +40,16 @@ test('lists every transaction and returns to the dashboard', async () => {
     vi.fn(async (url) => {
       const path = String(url)
       calls.push(path)
+      if (path.endsWith('/accounts')) return json(accounts)
       if (path.includes('offset=0')) {
         return json({
-          transactions: [transaction('tx-1', 'Tesco'), transaction('tx-2', 'Pret')],
+          transactions: [transaction('tx-1', 'Tesco'), transaction('tx-2', 'Pret', 'bank')],
           next_offset: 2,
         })
       }
       if (path.includes('offset=2')) {
         return json({
-          transactions: [transaction('tx-3', 'Cafe'), transaction('tx-4', 'Old shop')],
+          transactions: [transaction('tx-3', 'Cafe'), transaction('tx-4', 'Old shop', 'bank')],
           next_offset: null,
         })
       }
@@ -60,6 +67,8 @@ test('lists every transaction and returns to the dashboard', async () => {
   )
 
   expect(await screen.findByText('Tesco')).toBeInTheDocument()
+  expect(screen.getAllByText('Cash · Groceries · 2 Nov 2026')).toHaveLength(2)
+  expect(screen.getAllByText('Bank · Groceries · 2 Nov 2026')).toHaveLength(2)
   expect(screen.getByText('Pret')).toBeInTheDocument()
   expect(screen.getByText('Cafe')).toBeInTheDocument()
   expect(screen.getByText('Old shop')).toBeInTheDocument()
@@ -80,6 +89,7 @@ test('deletes a transaction and its transfer partner', async () => {
       if (options.method === 'DELETE') {
         return json({ deleted: true, ids: ['tx-out', 'tx-in'] })
       }
+      if (String(url).endsWith('/accounts')) return json(accounts)
       return json({
         transactions: [
           { ...transaction('tx-out', null), vendor: null, category: 'Transfer', kind: 'transfer' },
