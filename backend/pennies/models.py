@@ -28,6 +28,16 @@ class Base(DeclarativeBase):
     pass
 
 
+class UserCategory(Base):
+    __tablename__ = "user_categories"
+    __table_args__ = (UniqueConstraint("user_sub", "name"),)
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    user_sub: Mapped[str] = mapped_column(String(128), index=True)
+    name: Mapped[str] = mapped_column(String(40))
+    position: Mapped[int]
+
+
 class Account(Base):
     __tablename__ = "accounts"
 

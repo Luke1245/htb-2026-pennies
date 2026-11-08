@@ -120,6 +120,7 @@ export default function Dashboard() {
   function handleAccountRecorded() {
     setAccountFormOpen(false)
     setStatus(accountRecordedMessage)
+    setReloadKey((key) => key + 1)
   }
 
   async function openForm() {
@@ -168,13 +169,18 @@ export default function Dashboard() {
     <div className="dashboard">
       <header className="banner">
         <h1>Pennies</h1>
-        <button
-          type="button"
-          className="logout"
-          onClick={() => logout({ logoutParams: { returnTo: window.location.origin } })}
-        >
-          Log out
-        </button>
+        <div className="banner-actions">
+          <Link to="/accounts" className="logout">
+            Accounts
+          </Link>
+          <button
+            type="button"
+            className="logout"
+            onClick={() => logout({ logoutParams: { returnTo: window.location.origin } })}
+          >
+            Log out
+          </button>
+        </div>
       </header>
       <main className="dashboard-main">
             <p className="greeting">

@@ -38,13 +38,13 @@ A Transaction in the reserved Adjustment Category that corrects an Account's cal
 The process of comparing an Account's calculated balance with its real balance and creating an Adjustment for the difference.
 
 **Left to spend**:
-When a Monthly budget exists, that budget minus Spent this month; a negative value represents overspending. Without a Monthly budget, it is displayed as £0.
+When a Monthly budget exists, that budget minus Spent this month; a negative value represents overspending. Without a Monthly budget, it is the sum of Account balances, including each opening balance.
 
 **Monthly budget**:
 An optional spending limit assigned to one Calendar month; later edits do not alter other months, and a new month may copy the previous month's value.
 
 **Category**:
-Groceries, Transport, Eating out, Entertainment, Income, or Other, assigned once by Gemini to an ordinary Transaction (Other when it cannot choose) and changeable by the user. A Transfer is not categorised, an Adjustment uses the reserved Adjustment Category, and a Subscription has no Category.
+A label for ordinary spending. Pennies starts each user with Groceries, Transport, Eating out, Entertainment, Income, and Other, and the user can rename or add Categories without changing Transactions already recorded. Gemini assigns one to an ordinary Transaction (Other when it cannot choose). A Transfer is not categorised, an Adjustment uses the reserved Adjustment Category, and a Subscription has no Category.
 
 **Spending habit**:
 A pattern already visible in a user's historical spending, whether good or bad.

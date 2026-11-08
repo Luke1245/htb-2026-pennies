@@ -1,4 +1,5 @@
-import { fireEvent, render, screen } from '@testing-library/react'
+import { fireEvent, render as renderWithTestingLibrary, screen } from '@testing-library/react'
+import { MemoryRouter } from 'react-router'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 import RecommendationsPage from '../RecommendationsPage.jsx'
@@ -6,6 +7,10 @@ import RecommendationsPage from '../RecommendationsPage.jsx'
 vi.mock('@auth0/auth0-react', () => ({
   useAuth0: () => ({ getAccessTokenSilently: vi.fn() }),
 }))
+
+function render(ui) {
+  return renderWithTestingLibrary(<MemoryRouter>{ui}</MemoryRouter>)
+}
 
 const recommendations = [
   {
