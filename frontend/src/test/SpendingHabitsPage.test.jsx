@@ -22,10 +22,11 @@ describe('Spending habits page', () => {
     render(<SpendingHabitsPage loadPortrait={loadPortrait} onBack={() => {}} />)
 
     expect(screen.getByRole('status')).toHaveTextContent('Finding your spending habits')
-    expect(await screen.findByText('Friday takeaway is becoming the month.')).toBeInTheDocument()
+    expect(await screen.findByRole('img', { name: 'Pennie' })).toBeInTheDocument()
+    expect(screen.getByText('Friday takeaway is becoming the month.')).toBeInTheDocument()
     expect(screen.getByText('Coffee every weekday')).toBeInTheDocument()
     expect(screen.getByText('Eating out will pass the budget')).toBeInTheDocument()
-    expect(screen.getByRole('heading', { name: 'Budgeting basics' })).toBeInTheDocument()
+    expect(screen.getByText(/Budgeting basics/)).toBeInTheDocument()
     expect(screen.getByText('The Friday orders are the leak.')).toBeInTheDocument()
     expect(screen.getByText('Keep Friday under £20.')).toBeInTheDocument()
     expect(loadPortrait).toHaveBeenCalledWith({ action: 'load' })

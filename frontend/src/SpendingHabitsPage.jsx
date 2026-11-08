@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useAuth0 } from '@auth0/auth0-react'
 import { apiUrl, authHeaders } from './api.js'
+import pennie from './assets/pennie.png'
 import './spending-habits.css'
 
 const loadMessage = 'Pennies could not load your records'
@@ -72,7 +73,7 @@ export default function SpendingHabitsPage({ loadPortrait, onBack, onLogout, isA
     if (result.portrait) {
       portraitRef.current = result.portrait
       setPortrait(result.portrait)
-      setError(result.updated === false)
+      setError(false)
     } else if (result.updated) {
       portraitRef.current = null
       setPortrait(null)
@@ -89,7 +90,7 @@ export default function SpendingHabitsPage({ loadPortrait, onBack, onLogout, isA
     let active = true
     const requestId = ++latestRequest.current
     const timer = setTimeout(() => {
-      if (!active || requestId !== latestRequest.current) return
+      if (!active || requestId !== latestRequest.current || portraitRef.current) return
       setError(true)
       setStatus('ready')
     }, 20000)
@@ -228,16 +229,36 @@ export default function SpendingHabitsPage({ loadPortrait, onBack, onLogout, isA
           </div>
         )}
         {status === 'ready' && !portrait && !error && (
-          <section className="empty-state">
+          <PennieSays>
             <h3>No spending history yet</h3>
             <p>
-              Add a Transaction from the dashboard when you’re ready. Pennies will use your real spending to find habits.
+              Add a Transaction from the dashboard when you’re ready. I’ll use your real spending to find habits.
             </p>
-          </section>
+          </PennieSays>
         )}
         {portrait && (
           <>
-            <p className="portrait-reading">{openingLesson(portrait.reading)}</p>
+            <PennieSays>
+              <p className="portrait-reading">{openingLesson(portrait.reading)}</p>
+              <div className="pennie-points">
+                <h3>Learn this</h3>
+                {(portrait.educations || []).length === 0 ? (
+                  <p className="pennie-lesson">No lesson yet</p>
+                ) : (
+                  (portrait.educations || []).map((education) => (
+                    <p className="pennie-lesson" key={education.id}>
+                      <strong>{education.subject}.</strong> {education.body}
+                    </p>
+                  ))
+                )}
+                <h3>Try this</h3>
+                {(portrait.suggestions || []).length === 0 ? (
+                  <p className="status">Nothing to try yet</p>
+                ) : (
+                  (portrait.suggestions || []).map((suggestion) => <p key={suggestion.id}>{suggestion.body}</p>)
+                )}
+              </div>
+            </PennieSays>
             <section className="habit-section">
               <h3>Spending habits</h3>
               <HabitCards items={portrait.spending_habits || []} empty="No spending habits yet" />
@@ -245,35 +266,6 @@ export default function SpendingHabitsPage({ loadPortrait, onBack, onLogout, isA
             <section className="habit-section">
               <h3>If this keeps going</h3>
               <HabitCards items={portrait.projected_habits || []} empty="Nothing to watch yet" />
-            </section>
-            <section className="habit-section">
-              <h3>Learn this</h3>
-              {(portrait.educations || []).length === 0 ? (
-                <p className="status">No lesson yet</p>
-              ) : (
-                <div className="habit-list">
-                  {(portrait.educations || []).map((education) => (
-                    <article className="habit-card" key={education.id}>
-                      <h3>{education.subject}</h3>
-                      <p>{education.body}</p>
-                    </article>
-                  ))}
-                </div>
-              )}
-            </section>
-            <section className="habit-section">
-              <h3>Try this</h3>
-              {(portrait.suggestions || []).length === 0 ? (
-                <p className="status">Nothing to try yet</p>
-              ) : (
-                <div className="habit-list">
-                  {(portrait.suggestions || []).map((suggestion) => (
-                    <article className="habit-card" key={suggestion.id}>
-                      <p>{suggestion.body}</p>
-                    </article>
-                  ))}
-                </div>
-              )}
             </section>
           </>
         )}
@@ -297,6 +289,15 @@ export default function SpendingHabitsPage({ loadPortrait, onBack, onLogout, isA
         )}
       </main>
     </div>
+  )
+}
+
+function PennieSays({ children }) {
+  return (
+    <section className="pennie-advice" aria-label="Pennie’s advice">
+      <img className="pennie-avatar" src={pennie} alt="Pennie" />
+      <div className="pennie-bubble">{children}</div>
+    </section>
   )
 }
 

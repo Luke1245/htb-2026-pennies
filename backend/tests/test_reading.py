@@ -176,6 +176,7 @@ def test_gemini_client_reads_structured_json(monkeypatch):
             text = '{"category": "Transport"}'
         else:
             assert "one or two short sentences" in prompt
+            assert "lack of logged transactions" in prompt
             assert json["generationConfig"]["temperature"] == 0.6
             text = json_dumps_reading()
         request = httpx.Request("POST", url)
