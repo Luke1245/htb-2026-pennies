@@ -3,6 +3,7 @@
   width: 100%;
   background: #fff;
   color: #112114;
+  color-scheme: light;
   text-align: left;
   font-family: system-ui, 'Segoe UI', Roboto, sans-serif;
 }
@@ -337,6 +338,18 @@
   font-weight: 400;
 }
 
+select option {
+  background-color: #fff;
+  color: #112114;
+}
+
+select option:hover,
+select option:focus,
+select option:checked {
+  background-color: #e6e6e6;
+  color: #112114;
+}
+
 .direction {
   margin: 0;
   padding: 0;
@@ -399,8 +412,10 @@
   cursor: pointer;
 }
 
+#vendor-options li:hover,
 #vendor-options li[aria-selected='true'] {
-  background: #f4faef;
+  background: #e6e6e6;
+  color: #112114;
 }
 
 .form-actions {
@@ -436,7 +451,7 @@
   grid-template-columns: 96px 1fr auto;
 }
 
-.transactions li {
+.transactions li:has(.delete-transaction) {
   grid-template-columns: 1fr auto auto;
 }
 
