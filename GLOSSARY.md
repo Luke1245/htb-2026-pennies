@@ -61,11 +61,19 @@ _Avoid_: Profile, persona
 A short, curated financial-literacy article based on trusted sources, without AI generation or personalisation.
 _Avoid_: Education guide, basic advice
 
+**Resource**:
+A vetted external financial-literacy item that Pennies links to but does not host, curated from trusted sources in the same spirit as Guides.
+_Avoid_: External link, content
+
 **Education**:
 A read-only, AI-generated explanation written from the user's Financial portrait. It names the Guide it applies, or the Category, Spending habit, or Projected habit it explains when no Guide covers that subject.
 
 **Suggestion**:
 A read-only personalised action written from the user's Financial portrait, following from a named Education and focused primarily on current-month patterns.
+
+**Recommendation**:
+A read-only, personalised pointer written from the user's Financial portrait to a Guide or Resource, naming why it is relevant to their spending. Recommendations are part of the Financial portrait and are replaced when it is replaced.
+_Avoid_: Suggestion, pick
 
 **Subscription**:
 A monthly outflow the user logs apart from ordinary Transactions for one Calendar month: a name and a positive amount, with no Category. It counts towards Spent this month for that month, is part of the Financial portrait, and can shape Suggestions.

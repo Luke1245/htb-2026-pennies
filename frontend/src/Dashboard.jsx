@@ -39,7 +39,7 @@ function whenLabel(occurredAt) {
   }).format(new Date(occurredAt))
 }
 
-export default function Dashboard({ onViewSpendingHabits }) {
+export default function Dashboard({ onViewSpendingHabits, onViewRecommendations }) {
   const { user, logout, getAccessTokenSilently } = useAuth0()
   const { selectedGuide, openGuide, closeGuide } = useGuideRoute()
   const greeting = greetingFor(new Date())
@@ -50,6 +50,7 @@ export default function Dashboard({ onViewSpendingHabits }) {
   const [accounts, setAccounts] = useState([])
   const [formOpen, setFormOpen] = useState(false)
   const [reloadKey, setReloadKey] = useState(0)
+  const [recommendedGuideIds, setRecommendedGuideIds] = useState([])
   const recorded = useRef(false)
 
   useEffect(() => {
@@ -57,29 +58,43 @@ export default function Dashboard({ onViewSpendingHabits }) {
     let cancelled = false
 
     async function load() {
-      try {
-        const headers = await authHeaders(getAccessTokenSilently)
-        const [dashboardResponse, transactionResponse] = await Promise.all([
-          fetch(`${apiUrl}/dashboard`, { headers }),
-          fetch(`${apiUrl}/transactions?limit=20`, { headers }),
-        ])
-        if (!dashboardResponse.ok || !transactionResponse.ok) {
-          throw new Error(loadMessage)
-        }
-        const dashboard = await dashboardResponse.json()
-        const page = await transactionResponse.json()
-        if (!cancelled) {
-          setFigures(dashboard)
-          setTransactions(page.transactions)
-        }
-      } catch {
-        if (!cancelled) {
-          setStatus(afterRecord ? `${recordedMessage}. ${loadMessage}` : loadMessage)
-        }
+      const headers = await authHeaders(getAccessTokenSilently)
+      const [dashboardResponse, transactionResponse] = await Promise.all([
+        fetch(`${apiUrl}/dashboard`, { headers }),
+        fetch(`${apiUrl}/transactions?limit=20`, { headers }),
+      ])
+      if (!dashboardResponse.ok || !transactionResponse.ok) {
+        throw new Error(loadMessage)
+      }
+      const dashboard = await dashboardResponse.json()
+      const page = await transactionResponse.json()
+      if (!cancelled) {
+        setFigures(dashboard)
+        setTransactions(page.transactions)
       }
     }
 
-    load()
+    async function loadRecommendedGuides() {
+      try {
+        const headers = await authHeaders(getAccessTokenSilently)
+        const response = await fetch(`${apiUrl}/reading`, { headers })
+        if (!response.ok) throw new Error(loadMessage)
+        const body = await response.json()
+        const recommended = (body.reading?.recommendations || [])
+          .filter((recommendation) => recommendation.kind === 'guide')
+          .map((recommendation) => recommendation.guide_id)
+        if (!cancelled) setRecommendedGuideIds(recommended)
+      } catch {
+        if (!cancelled) setRecommendedGuideIds([])
+      }
+    }
+
+    load().catch(() => {
+      if (!cancelled) {
+        setStatus(afterRecord ? `${recordedMessage}. ${loadMessage}` : loadMessage)
+      }
+    })
+    loadRecommendedGuides()
     return () => {
       cancelled = true
     }
@@ -241,8 +256,19 @@ export default function Dashboard({ onViewSpendingHabits }) {
                 </section>
               </div>
             )}
+            <a
+              href="#recommendations"
+              className="recommendations-link"
+              onClick={(event) => {
+                event.preventDefault()
+                onViewRecommendations?.()
+              }}
+            >
+              See what Pennies recommends for you <span aria-hidden="true">→</span>
+            </a>
             <GuideCards
               guides={guides}
+              recommendedIds={recommendedGuideIds}
               onSelect={(guide) => {
                 setFormOpen(false)
                 openGuide(guide)

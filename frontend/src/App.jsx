@@ -4,6 +4,7 @@ import './dashboard.css'
 import './App.css'
 import Dashboard from './Dashboard.jsx'
 import SpendingHabitsPage from './SpendingHabitsPage.jsx'
+import RecommendationsPage from './RecommendationsPage.jsx'
 
 function PenniesShell({ children }) {
   return (
@@ -20,6 +21,7 @@ function App() {
   const { isLoading, isAuthenticated, error, loginWithRedirect, logout } = useAuth0()
   const [page, setPage] = useState('dashboard')
   const [hasOpenedHabits, setHasOpenedHabits] = useState(false)
+  const [hasOpenedRecommendations, setHasOpenedRecommendations] = useState(false)
 
   if (isLoading) {
     return (
@@ -66,16 +68,36 @@ function App() {
     setPage('spending-habits')
   }
 
+  const openRecommendations = () => {
+    setHasOpenedRecommendations(true)
+    setPage('recommendations')
+  }
+
+  const openGuideFromRecommendations = (guide) => {
+    window.location.hash = `#guide/${guide.id}`
+    setPage('dashboard')
+  }
+
   return (
     <>
       <div hidden={page !== 'dashboard'}>
-        <Dashboard onViewSpendingHabits={openHabits} />
+        <Dashboard onViewSpendingHabits={openHabits} onViewRecommendations={openRecommendations} />
       </div>
       {hasOpenedHabits && (
         <div hidden={page !== 'spending-habits'}>
           <SpendingHabitsPage
             isActive={page === 'spending-habits'}
             onBack={() => setPage('dashboard')}
+            onLogout={() => logout({ logoutParams: { returnTo: window.location.origin } })}
+          />
+        </div>
+      )}
+      {hasOpenedRecommendations && (
+        <div hidden={page !== 'recommendations'}>
+          <RecommendationsPage
+            isActive={page === 'recommendations'}
+            onBack={() => setPage('dashboard')}
+            onOpenGuide={openGuideFromRecommendations}
             onLogout={() => logout({ logoutParams: { returnTo: window.location.origin } })}
           />
         </div>

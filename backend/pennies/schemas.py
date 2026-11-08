@@ -165,12 +165,24 @@ class SuggestionOut(ApiModel):
     body: str
 
 
+class RecommendationOut(ApiModel):
+    id: UUID
+    kind: str
+    guide_id: str | None
+    resource_id: str | None
+    reason: str
+    title: str | None
+    url: str | None
+    publisher: str | None
+
+
 class PortraitOut(ApiModel):
     reading: str
     spending_habits: list[str]
     projected_habits: list[str]
     educations: list[EducationOut]
     suggestions: list[SuggestionOut]
+    recommendations: list[RecommendationOut]
 
 
 class ReadingOut(ApiModel):

@@ -3,7 +3,7 @@ import json
 import httpx
 
 from pennies.api import create_app
-from pennies.reading import EducationDraft, ReadingDraft, SuggestionDraft
+from pennies.reading import EducationDraft, ReadingDraft, RecommendationDraft, SuggestionDraft
 from tests.test_api import NOW, account, make_client
 
 
@@ -13,6 +13,10 @@ class FakeReader:
         self.payloads = []
         self.fail_categorise = False
         self.fail_read = False
+        self.recommendations = [
+            RecommendationDraft("guide", "budgeting-basics", None, "The grocery shops need a budget."),
+            RecommendationDraft("resource", None, "moneyhelper-budget-planner", "A budget planner fits this month."),
+        ]
 
     def categorise(self, facts):
         self.facts.append(facts)
@@ -35,6 +39,7 @@ class FakeReader:
                 EducationDraft("Eating out", None, "Eating out is not the pattern here."),
             ],
             suggestions=[SuggestionDraft(0, "Keep the grocery shops inside this month's budget.")],
+            recommendations=self.recommendations,
         )
 
 

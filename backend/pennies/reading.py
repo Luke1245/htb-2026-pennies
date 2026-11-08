@@ -8,12 +8,13 @@ from pennies.calendar import LONDON, YearMonth, as_utc
 from pennies.categories import ORDINARY_CATEGORIES, OTHER
 from pennies.dashboard import dashboard
 from pennies.errors import DomainError
-from pennies.guides import guide_ids, list_guides
+from pennies.guides import get_guide, guide_ids, list_guides
 from pennies.ledger import list_accounts
 from pennies.models import (
     EducationItem,
     Habit,
     Portrait,
+    RecommendationItem,
     SharingPreference,
     Subscription,
     SuggestionItem,
@@ -21,6 +22,7 @@ from pennies.models import (
     TransactionKind,
 )
 from pennies.money import money_str
+from pennies.resources import get_resource, list_resources, resource_ids
 
 RAW = "raw"
 SANITISED = "sanitised"
@@ -43,12 +45,21 @@ class SuggestionDraft:
 
 
 @dataclass(frozen=True)
+class RecommendationDraft:
+    kind: str
+    guide_id: str | None
+    resource_id: str | None
+    reason: str
+
+
+@dataclass(frozen=True)
 class ReadingDraft:
     reading: str
     spending_habits: list[str]
     projected_habits: list[str]
     educations: list[EducationDraft]
     suggestions: list[SuggestionDraft]
+    recommendations: list[RecommendationDraft]
 
 
 class UnavailableReader:
@@ -197,6 +208,15 @@ def _payload(db: Session, user_sub: str, now: datetime, mode: str) -> dict:
             }
             for guide in list_guides()
         ],
+        "resources": [
+            {
+                "id": resource["id"],
+                "title": resource["title"],
+                "publisher": resource["publisher"],
+                "summary": resource["summary"],
+            }
+            for resource in list_resources()
+        ],
     }
 
 
@@ -245,6 +265,18 @@ def _store_portrait(db: Session, user_sub: str, mode: str, draft: ReadingDraft) 
         if item.education_index < 0 or item.education_index >= len(educations):
             continue
         suggestions.append((item.education_index, body))
+    known_resources = resource_ids()
+    recommendations = []
+    for item in draft.recommendations:
+        reason = item.reason.strip()
+        if not reason:
+            continue
+        if item.kind == "guide" and item.guide_id in known_guides and item.resource_id is None:
+            recommendations.append((item.kind, item.guide_id, None, reason))
+        elif item.kind == "resource" and item.resource_id in known_resources and item.guide_id is None:
+            recommendations.append((item.kind, None, item.resource_id, reason))
+        if len(recommendations) == 3:
+            break
     _delete_portrait(db, user_sub)
     portrait = Portrait(user_sub=user_sub, sharing_mode=mode, reading=reading)
     db.add(portrait)
@@ -267,6 +299,17 @@ def _store_portrait(db: Session, user_sub: str, mode: str, draft: ReadingDraft) 
                 body=body,
             )
         )
+    for position, (kind, guide_id, resource_id, reason) in enumerate(recommendations):
+        db.add(
+            RecommendationItem(
+                portrait_id=portrait.id,
+                position=position,
+                kind=kind,
+                guide_id=guide_id,
+                resource_id=resource_id,
+                reason=reason,
+            )
+        )
     db.flush()
     return portrait
 
@@ -287,6 +330,7 @@ def _delete_portrait(db: Session, user_sub: str) -> None:
     db.execute(delete(SuggestionItem).where(SuggestionItem.portrait_id == portrait.id))
     db.execute(delete(EducationItem).where(EducationItem.portrait_id == portrait.id))
     db.execute(delete(Habit).where(Habit.portrait_id == portrait.id))
+    db.execute(delete(RecommendationItem).where(RecommendationItem.portrait_id == portrait.id))
     db.delete(portrait)
     db.flush()
 
@@ -302,6 +346,45 @@ def _portrait_out(db: Session, user_sub: str) -> dict | None:
     suggestions = db.scalars(
         select(SuggestionItem).where(SuggestionItem.portrait_id == portrait.id).order_by(SuggestionItem.id)
     ).all()
+    stored_recommendations = db.scalars(
+        select(RecommendationItem)
+        .where(RecommendationItem.portrait_id == portrait.id)
+        .order_by(RecommendationItem.position)
+    ).all()
+    recommendations = []
+    for item in stored_recommendations:
+        if item.kind == "guide":
+            guide = get_guide(item.guide_id) if item.guide_id else None
+            if guide is None:
+                continue
+            recommendations.append(
+                {
+                    "id": item.id,
+                    "kind": "guide",
+                    "guide_id": item.guide_id,
+                    "resource_id": None,
+                    "reason": item.reason,
+                    "title": guide["title"],
+                    "url": None,
+                    "publisher": None,
+                }
+            )
+        elif item.kind == "resource":
+            resource = get_resource(item.resource_id) if item.resource_id else None
+            if resource is None:
+                continue
+            recommendations.append(
+                {
+                    "id": item.id,
+                    "kind": "resource",
+                    "guide_id": None,
+                    "resource_id": item.resource_id,
+                    "reason": item.reason,
+                    "title": resource["title"],
+                    "url": resource["url"],
+                    "publisher": resource["publisher"],
+                }
+            )
     return {
         "reading": portrait.reading,
         "spending_habits": [habit.description for habit in habits if habit.kind == SPENDING],
@@ -319,5 +402,6 @@ def _portrait_out(db: Session, user_sub: str) -> dict | None:
             {"id": suggestion.id, "education_id": suggestion.education_id, "body": suggestion.body}
             for suggestion in suggestions
         ],
+        "recommendations": recommendations,
     }
 

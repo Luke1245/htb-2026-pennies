@@ -55,7 +55,7 @@ export function GuideView({ guide, onBack }) {
   )
 }
 
-export function GuideCards({ guides, onSelect }) {
+export function GuideCards({ guides, onSelect, recommendedIds = [] }) {
   return (
     <section className="guides" aria-labelledby="guides-heading">
       <h2 id="guides-heading">Guides</h2>
@@ -69,6 +69,7 @@ export function GuideCards({ guides, onSelect }) {
             onClick={() => onSelect(guide)}
           >
             <span className="guide-card-title">{guide.title}</span>
+            {recommendedIds.includes(guide.id) && <span className="badge">Recommended</span>}
             <span>{guide.summary}</span>
             <span className="read-guide">Read guide →</span>
           </button>

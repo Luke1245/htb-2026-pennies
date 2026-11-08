@@ -3,7 +3,7 @@ import json
 import httpx
 
 from pennies.categories import ORDINARY_CATEGORIES
-from pennies.reading import EducationDraft, ReadingDraft, SuggestionDraft
+from pennies.reading import EducationDraft, ReadingDraft, RecommendationDraft, SuggestionDraft
 
 _CATEGORY_SCHEMA = {
     "type": "OBJECT",
@@ -45,14 +45,36 @@ _READING_SCHEMA = {
                 "propertyOrdering": ["education_index", "body"],
             },
         },
+        "recommendations": {
+            "type": "ARRAY",
+            "items": {
+                "type": "OBJECT",
+                "properties": {
+                    "kind": {"type": "STRING", "enum": ["guide", "resource"]},
+                    "guide_id": {"type": "STRING"},
+                    "resource_id": {"type": "STRING"},
+                    "reason": {"type": "STRING"},
+                },
+                "required": ["kind", "guide_id", "resource_id", "reason"],
+                "propertyOrdering": ["kind", "guide_id", "resource_id", "reason"],
+            },
+        },
     },
-    "required": ["reading", "spending_habits", "projected_habits", "educations", "suggestions"],
+    "required": [
+        "reading",
+        "spending_habits",
+        "projected_habits",
+        "educations",
+        "suggestions",
+        "recommendations",
+    ],
     "propertyOrdering": [
         "reading",
         "spending_habits",
         "projected_habits",
         "educations",
         "suggestions",
+        "recommendations",
     ],
 }
 
@@ -93,6 +115,10 @@ class GeminiReader:
             "Write suggestions that follow from one of those educations by education_index, "
             "focused primarily on the current month, and concrete enough to act on this month. "
             "Leave guide_id empty when the education does not apply a guide. "
+            "Write at most three recommendations, most relevant first, each pointing to one of the "
+            "supplied guides by guide_id or one of the supplied resources by resource_id, "
+            "with a one-sentence reason tied to a named spending habit, category, or projected habit. "
+            "Only recommend material that genuinely fits this history; fewer than three is fine. "
             "The reading itself should be several paragraphs: specific, opinionated, and interesting. "
             "Habits, education, and suggestions should be detailed sentences. "
             f"History: {json.dumps(payload)}"
@@ -126,12 +152,25 @@ class GeminiReader:
                     body=str(item.get("body") or ""),
                 )
             )
+        recommendations = []
+        for item in body.get("recommendations") or []:
+            if not isinstance(item, dict):
+                continue
+            recommendations.append(
+                RecommendationDraft(
+                    kind=str(item.get("kind") or ""),
+                    guide_id=item.get("guide_id") or None,
+                    resource_id=item.get("resource_id") or None,
+                    reason=str(item.get("reason") or ""),
+                )
+            )
         return ReadingDraft(
             reading=str(body.get("reading") or ""),
             spending_habits=[str(item) for item in body.get("spending_habits") or []],
             projected_habits=[str(item) for item in body.get("projected_habits") or []],
             educations=educations,
             suggestions=suggestions,
+            recommendations=recommendations,
         )
 
     def _generate(

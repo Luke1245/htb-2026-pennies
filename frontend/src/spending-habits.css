@@ -156,6 +156,56 @@
   line-height: 1.55;
 }
 
+.recommendation-list {
+  margin-top: 28px;
+  padding-left: 0;
+  list-style: none;
+}
+
+.recommendation-list > li + li {
+  margin-top: 16px;
+}
+
+.recommendation-kind {
+  color: #487853;
+  font-size: 13px;
+  font-weight: 650;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.recommendation-open {
+  display: block;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: none;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+
+.recommendation-open .read-guide {
+  display: inline-block;
+  margin-top: 12px;
+  color: #487853;
+  font-weight: 650;
+}
+
+.recommendation-open:hover .read-guide,
+.habit-card a.read-guide:hover {
+  text-decoration: underline;
+}
+
+.habit-card a.read-guide {
+  display: inline-block;
+  margin-top: 12px;
+  color: #487853;
+  font-weight: 650;
+  text-decoration: none;
+}
+
 .habit-evidence {
   margin-top: 16px;
   padding: 13px 15px;

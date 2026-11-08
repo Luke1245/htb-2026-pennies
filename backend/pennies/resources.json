@@ -1,0 +1,50 @@
+[
+  {
+    "id": "moneyhelper-budget-planner",
+    "title": "Budget planner",
+    "publisher": "MoneyHelper",
+    "url": "https://www.moneyhelper.org.uk/en/everyday-money/budgeting/budget-planner",
+    "summary": "A free planner that turns income and spending into a clear monthly budget.",
+    "reviewed": "8 November 2026"
+  },
+  {
+    "id": "moneyhelper-debt-troubles",
+    "title": "Dealing with debt",
+    "publisher": "MoneyHelper",
+    "url": "https://www.moneyhelper.org.uk/en/money-troubles/dealing-with-debt",
+    "summary": "Where to start when bills or borrowing are getting on top of you.",
+    "reviewed": "8 November 2026"
+  },
+  {
+    "id": "stepchange",
+    "title": "Free debt advice",
+    "publisher": "StepChange Debt Charity",
+    "url": "https://www.stepchange.org/",
+    "summary": "Free, confidential debt advice, including repayment plans managed for you.",
+    "reviewed": "8 November 2026"
+  },
+  {
+    "id": "national-debtline",
+    "title": "Debt advice line",
+    "publisher": "National Debtline",
+    "url": "https://www.nationaldebtline.org/",
+    "summary": "Free, independent advice on dealing with personal debt by phone and webchat.",
+    "reviewed": "8 November 2026"
+  },
+  {
+    "id": "moneysavingexpert-students",
+    "title": "Student money tips",
+    "publisher": "MoneySavingExpert",
+    "url": "https://www.moneysavingexpert.com/students/",
+    "summary": "Banking, budgeting, and stretching a student loan further.",
+    "reviewed": "8 November 2026"
+  },
+  {
+    "id": "gov-uk-student-finance",
+    "title": "Student finance",
+    "publisher": "GOV.UK",
+    "url": "https://www.gov.uk/student-finance",
+    "summary": "What student finance is available, who qualifies, and how repayments work.",
+    "reviewed": "8 November 2026"
+  }
+]
