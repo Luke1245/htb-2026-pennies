@@ -1,4 +1,4 @@
-# Pennies
+# Penny Money 
 
 A private personal spending tracker that teaches the user while it tracks. Record transactions, set a monthly budget, and let Google Gemini turn your spending into insights and education: an overview of your financial lifestyle that describes how you spend, projected habits, trade-offs, and curated next steps.
 ## Features
