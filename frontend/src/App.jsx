@@ -3,7 +3,7 @@ import { useAuth0 } from '@auth0/auth0-react'
 import { BrowserRouter, Navigate, Route, Routes, useNavigate } from 'react-router'
 import './dashboard.css'
 import './App.css'
-import pennie from './assets/pennie.png'
+import pennieRound from './assets/pennie_round.png'
 import Dashboard from './Dashboard.jsx'
 import { GuidePage } from './Guides.jsx'
 import RecommendationsPage from './RecommendationsPage.jsx'
@@ -102,7 +102,7 @@ function AboutYouDialog({ onSaved }) {
       onCancel={(event) => event.preventDefault()}
     >
       <form onSubmit={submit}>
-        <img className="about-you-portrait" src={pennie} alt="Penny" />
+        <img className="about-you-portrait" src={pennieRound} alt="Penny" />
         <h2 id="about-you-title">Tell Penny about yourself</h2>
         <label>
           First name
