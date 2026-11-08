@@ -19,6 +19,33 @@
   color: #112114;
 }
 
+.auth-panel label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 16px;
+  color: #487853;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.auth-panel input {
+  box-sizing: border-box;
+  width: 100%;
+  padding: 8px;
+  border: 1px solid #acd990;
+  border-radius: 6px;
+  color: #112114;
+  background: #fff;
+  font: inherit;
+  font-weight: 400;
+}
+
+.auth-panel input:focus-visible {
+  outline: 3px solid #487853;
+  outline-offset: 3px;
+}
+
 .auth-actions {
   display: flex;
   gap: 12px;
@@ -46,4 +73,64 @@
 .auth-actions button:focus-visible {
   outline: 2px solid #487853;
   outline-offset: 2px;
+}
+
+.about-you {
+  width: min(420px, calc(100% - 32px));
+  margin: auto;
+  padding: 24px;
+  border: 1px solid #acd990;
+  border-radius: 8px;
+  background: #fff;
+  color: #112114;
+}
+
+.about-you::backdrop {
+  background: rgba(17, 33, 20, 0.5);
+}
+
+.about-you-portrait {
+  display: block;
+  width: 160px;
+  height: auto;
+  margin: 0 auto 8px;
+}
+
+.about-you h2 {
+  margin: 0 0 16px;
+  font-size: 22px;
+  font-weight: 600;
+  letter-spacing: 0;
+  color: #112114;
+}
+
+.about-you label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 16px;
+  color: #487853;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.about-you input {
+  box-sizing: border-box;
+  width: 100%;
+  padding: 8px;
+  border: 1px solid #acd990;
+  border-radius: 6px;
+  color: #112114;
+  background: #fff;
+  font: inherit;
+  font-weight: 400;
+}
+
+.about-you input:focus-visible {
+  outline: 3px solid #487853;
+  outline-offset: 3px;
+}
+
+.about-you .status {
+  margin: 0 0 12px;
 }

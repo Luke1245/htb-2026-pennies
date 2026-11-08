@@ -20,7 +20,7 @@ describe('Dashboard', () => {
     render(
       <MemoryRouter>
         <Routes>
-          <Route path="/" element={<Dashboard />} />
+          <Route path="/" element={<Dashboard name="Alex" />} />
           <Route path="/spending-habits" element={<h2>Spending habits</h2>} />
         </Routes>
       </MemoryRouter>,

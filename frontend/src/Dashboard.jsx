@@ -12,13 +12,6 @@ const recordedMessage = 'Transaction recorded'
 const accountRecordedMessage = 'Account recorded'
 const loadMessage = 'Pennies could not load your records'
 
-function greetingFor(date) {
-  const hour = date.getHours()
-  if (hour < 12) return 'Good morning'
-  if (hour < 18) return 'Good afternoon'
-  return 'Good evening'
-}
-
 function pounds(value) {
   const amount = Number(value)
   const text = `£${Math.abs(amount).toFixed(2)}`
@@ -41,11 +34,9 @@ function whenLabel(occurredAt) {
   }).format(new Date(occurredAt))
 }
 
-export default function Dashboard() {
-  const { user, logout, getAccessTokenSilently } = useAuth0()
+export default function Dashboard({ name }) {
+  const { logout, getAccessTokenSilently } = useAuth0()
   const navigate = useNavigate()
-  const greeting = greetingFor(new Date())
-  const name = user?.given_name || user?.name || 'Elodie'
   const [figures, setFigures] = useState(null)
   const [transactions, setTransactions] = useState([])
   const [status, setStatus] = useState('')
@@ -183,9 +174,7 @@ export default function Dashboard() {
         </div>
       </header>
       <main className="dashboard-main">
-            <p className="greeting">
-              {greeting}, {name}
-            </p>
+            {name && <p className="greeting">Hi, {name}</p>}
             {status && <p className="status">{status}</p>}
             {!status && !figures && <p className="status">Loading…</p>}
             {figures && (
