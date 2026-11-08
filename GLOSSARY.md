@@ -41,26 +41,34 @@ When a Monthly budget exists, that budget minus Spent this month; a negative val
 An optional spending limit assigned to one Calendar month; later edits do not alter other months, and a new month may copy the previous month's value.
 
 **Category**:
-A classification from Pennies' predefined list, assigned to every Transaction by AI and changeable by the user.
+A classification from Pennies' predefined list, assigned by AI to an ordinary Transaction and changeable by the user. A Transfer is not categorised. An Adjustment uses the reserved Adjustment Category.
 
 **Spending habit**:
-An AI-generated summary of a pattern in a user's historical spending behaviour.
+A pattern already visible in a user's historical spending, whether good or bad.
+
+**Projected habit**:
+A bad Spending habit Gemini expects if the user's current behaviour continues.
+_Avoid_: Forecast, prediction
+
+**Financial portrait**:
+The account owner's single current in-depth reading of their ordinary Transactions under the active sharing mode, naming their Spending habits and Projected habits. It exists only after the first ordinary Transaction; a later ordinary Transaction replaces it, and changing sharing mode discards it together with the Education and Suggestions written from it.
+_Avoid_: Profile, persona
 
 **Guide**:
 A short, curated financial-literacy article based on trusted sources, without AI generation or personalisation.
 _Avoid_: Education guide, basic advice
 
 **Education**:
-AI-generated financial-learning content that explains a concept relevant to the user's situation.
+An AI-generated explanation that applies a Guide to the user's situation, written from their Financial portrait.
 
 **Suggestion**:
-A personalised educational action generated automatically by AI as the user uses Pennies, based on their full transaction history filtered through their chosen sharing mode and focused primarily on current-month patterns.
+A personalised action written from the user's Financial portrait, following from their Education and focused primarily on current-month patterns.
 
 **Subscription**:
 A recurring financial commitment for which the user manually records each monthly outflow; it does not count as spending by itself.
 
 **Raw sharing**:
-An AI sharing mode that includes each transaction's vendor or payee, amount, category, date, and note, plus Account names and calculated balances.
+The default AI sharing mode. It includes each transaction's vendor or payee, amount, category, date, and note, plus Account names and calculated balances.
 
 **Sanitised sharing**:
 An AI sharing mode that includes only transaction amount, category, and calendar month, plus calculated Account balances without their names.
