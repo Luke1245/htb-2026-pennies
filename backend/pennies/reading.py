@@ -142,6 +142,10 @@ def current_reading(db: Session, user_sub: str, now: datetime) -> dict | None:
     return _ledger_reading(db, user_sub, now)
 
 
+def has_stored_reading(db: Session, user_sub: str) -> bool:
+    return db.scalar(select(Portrait.id).where(Portrait.user_sub == user_sub)) is not None
+
+
 def _ledger_reading(db: Session, user_sub: str, now: datetime) -> dict | None:
     figures = dashboard(db, user_sub, now)
     parts = [(category["name"], category["amount"]) for category in figures["categories"]]

@@ -104,6 +104,7 @@ def test_gemini_assigns_once_and_a_user_edit_sticks():
     built = client.post("/reading")
     assert built.status_code == 200, built.text
     assert built.json()["updated"] is True
+    assert built.json()["stored"] is True
     assert built.json()["reading"]["spending_habits"] == ["Regular grocery shops"]
     assert built.json()["reading"]["suggestions"][0]["body"].startswith("Keep the grocery")
     categorised = client.get("/transactions").json()["transactions"][0]
@@ -199,7 +200,9 @@ def test_one_transaction_has_a_spending_insight_before_gemini_writes_one():
     )
     assert created.status_code == 200, created.text
 
-    reading = client.get("/reading").json()["reading"]
+    response = client.get("/reading").json()
+    assert response["stored"] is False
+    reading = response["reading"]
     assert reader.payloads == []
     assert reading["reading"] == "£6.00 went to Groceries this month."
     assert "Tesco" not in reading["reading"]
@@ -229,6 +232,7 @@ def test_a_failed_reading_keeps_the_previous_one_and_guides_stay_curated():
     reader.fail_read = True
     failed = client.post("/reading")
     assert failed.json()["updated"] is False
+    assert failed.json()["stored"] is True
     assert failed.json()["reading"]["reading"] == "Shops little and often."
 
     guides = client.get("/guides")
@@ -238,7 +242,9 @@ def test_a_failed_reading_keeps_the_previous_one_and_guides_stay_curated():
 
     holder["sub"] = "user-b"
     assert client.get("/subscriptions").json() == []
-    assert client.get("/reading").json()["reading"] is None
+    empty = client.get("/reading").json()
+    assert empty["reading"] is None
+    assert empty["stored"] is False
 
 
 def test_gemini_client_reads_structured_json(monkeypatch):
@@ -249,11 +255,14 @@ def test_gemini_client_reads_structured_json(monkeypatch):
         if prompt.startswith("Assign"):
             assert "Decide from the vendor and the note." in prompt
             assert json["generationConfig"]["temperature"] == 0
+            assert json["generationConfig"]["thinkingConfig"] == {"thinkingBudget": 0}
             text = '{"category": "Transport"}'
         else:
             assert "one or two short sentences" in prompt
             assert "lack of logged transactions" in prompt
             assert json["generationConfig"]["temperature"] == 0.6
+            assert json["generationConfig"]["maxOutputTokens"] == 4096
+            assert json["generationConfig"]["thinkingConfig"] == {"thinkingBudget": 0}
             text = json_dumps_reading()
         request = httpx.Request("POST", url)
         return httpx.Response(200, json={"candidates": [{"content": {"parts": [{"text": text}]}}]}, request=request)

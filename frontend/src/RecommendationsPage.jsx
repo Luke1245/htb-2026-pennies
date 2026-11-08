@@ -33,7 +33,7 @@ async function fetchRecommendations(getAccessTokenSilently, request) {
     return rebuildResult(rebuilt)
   }
   const reading = await api('/reading', token)
-  if (reading.reading) {
+  if (reading.stored !== false && reading.reading) {
     return { recommendations: reading.reading.recommendations || [], updated: true }
   }
   const built = await api('/reading', token, { method: 'POST' })

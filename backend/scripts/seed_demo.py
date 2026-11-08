@@ -16,12 +16,13 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from pennies.categories import OTHER
 from pennies.db import make_engine, make_session_factory
-from pennies.models import Account, MonthlyBudget, Subscription, Transaction, TransactionKind
+from pennies.models import Account, MonthlyBudget, Transaction, TransactionKind
+from pennies.reading import discard_reading
 from pennies.settings import load_settings
 
-DEFAULT_SUB = "auth0|6aefbba02376630247ef93e5"
+DEFAULT_SUB = "auth0|6aefc93491d1d3240c2c45ca"
+ACCOUNT_NAME = "Everyday"
 _NAMESPACE = uuid.uuid5(uuid.NAMESPACE_URL, "https://pennies.demo/seed")
 
 
@@ -33,51 +34,62 @@ def at(month: int, day: int, hour: int = 12) -> datetime:
     return datetime(2026, month, day, hour, 0, tzinfo=timezone.utc)
 
 
-# (occurred_at, account, amount, vendor, note) — amounts as strings.
+# (occurred_at, amount, vendor, note, category). No rent, bills, or phone contract.
 ORDINARY = [
-    (at(10, 2), "Monzo", "850.00", "Part-time job", "Wages"),
-    (at(10, 5), "Monzo", "-8.60", "Transport for London", "Oyster top-up"),
-    (at(10, 6), "Monzo", "-32.40", "Tesco", "Weekly shop"),
-    (at(10, 8), "Cash", "-4.80", "Caffe Nero", "Coffee before lecture"),
-    (at(10, 10), "Monzo", "-11.00", "Cineworld", "Cinema ticket"),
-    (at(10, 12), "Monzo", "-8.60", "Transport for London", "Oyster top-up"),
-    (at(10, 13), "Monzo", "-27.85", "Sainsbury's", "Weekly shop"),
-    (at(10, 14), "Cash", "-25.00", "Boots", "Pharmacy"),
-    (at(10, 15), "Cash", "-12.60", "Pret A Manger", "Lunch"),
-    (at(10, 17), "Monzo", "-7.99", "Steam", "Game"),
-    (at(10, 19), "Monzo", "-8.60", "Transport for London", "Oyster top-up"),
-    (at(10, 20), "Monzo", "-41.10", "Tesco", "Weekly shop"),
-    (at(10, 22), "Monzo", "-18.90", "Domino's Pizza", "Friday takeaway"),
-    (at(10, 24), "Monzo", "-14.00", "Castle Climbing Centre", "Climbing session"),
-    (at(10, 26), "Monzo", "-8.60", "Transport for London", "Oyster top-up"),
-    (at(10, 27), "Cash", "-18.75", "Lidl", "Weekly shop"),
-    (at(10, 29), "Cash", "-5.20", "Caffe Nero", "Coffee with friends"),
-    (at(11, 1), "Monzo", "-11.00", "Cineworld", "Cinema ticket"),
-    (at(11, 2), "Monzo", "850.00", "Part-time job", "Wages"),
-    (at(11, 2), "Monzo", "-8.60", "Transport for London", "Oyster top-up"),
-    (at(11, 3), "Monzo", "-36.20", "Tesco", "Weekly shop"),
-    (at(11, 3), "Monzo", "-9.99", "Amazon", "Course textbook"),
-    (at(11, 4), "Monzo", "-13.75", "Dishoom", "Dinner out"),
-    (at(11, 5), "Monzo", "240.00", "Corner Shop Ltd", "Part-time wages"),
-    (at(11, 5), "Cash", "-1.75", "Metroline", "Bus fare"),
-    (at(11, 6), "Cash", "-4.60", "Caffe Nero", "Coffee before lecture"),
-    (at(11, 7), "Monzo", "-8.60", "Transport for London", "Oyster top-up"),
-    (at(11, 7), "Monzo", "-22.45", "Sainsbury's", "Weekly shop"),
-    (at(11, 8, 9), "Cash", "-11.20", "Leon", "Lunch"),
+    (at(10, 1), "30.00", "Family", "Weekly money", "Income"),
+    (at(10, 1, 13), "-3.60", "Greggs", "Sausage roll and juice", "Eating out"),
+    (at(10, 2), "-6.99", "Steam", "Game", "Entertainment"),
+    (at(10, 3), "-4.15", "Tesco", "Meal deal", "Groceries"),
+    (at(10, 4), "-5.49", "McDonald's", "After school", "Eating out"),
+    (at(10, 5), "-8.99", "Cineworld", "Film with friends", "Entertainment"),
+    (at(10, 6), "-3.25", "Costa", "Hot chocolate", "Eating out"),
+    (at(10, 7), "-9.00", "Primark", "T-shirt", "Other"),
+    (at(10, 8), "30.00", "Family", "Weekly money", "Income"),
+    (at(10, 8, 13), "-3.40", "Greggs", "Lunch", "Eating out"),
+    (at(10, 9), "-7.99", "PlayStation", "Store game", "Entertainment"),
+    (at(10, 10), "-2.80", "Tesco", "Snacks", "Groceries"),
+    (at(10, 11), "-12.99", "Domino's", "Friday pizza", "Eating out"),
+    (at(10, 12), "-6.80", "ScotRail", "Day out", "Transport"),
+    (at(10, 13), "-4.99", "McDonald's", "Lunch", "Eating out"),
+    (at(10, 14), "-2.50", "Tesco", "Sweets", "Groceries"),
+    (at(10, 15), "30.00", "Family", "Weekly money", "Income"),
+    (at(10, 15, 16), "-4.99", "Steam", "Sale game", "Entertainment"),
+    (at(10, 16), "-3.80", "Greggs", "Breakfast", "Eating out"),
+    (at(10, 17), "-13.50", "Nando's", "Meal with friends", "Eating out"),
+    (at(10, 18), "-11.00", "Primark", "Hoodie", "Other"),
+    (at(10, 19), "-3.45", "Costa", "Iced drink", "Eating out"),
+    (at(10, 20), "-6.20", "McDonald's", "Dinner", "Eating out"),
+    (at(10, 21), "-8.99", "Cineworld", "Film", "Entertainment"),
+    (at(10, 22), "30.00", "Family", "Weekly money", "Income"),
+    (at(10, 22, 18), "-5.10", "Tesco", "Meal deal and crisps", "Groceries"),
+    (at(10, 23), "-11.50", "Domino's", "Pizza with friends", "Eating out"),
+    (at(10, 24), "48.00", "Cafe", "Saturday shift", "Income"),
+    (at(10, 25), "-3.10", "Greggs", "Breakfast", "Eating out"),
+    (at(10, 26), "-9.99", "PlayStation", "Game", "Entertainment"),
+    (at(10, 27), "-6.50", "Primark", "Beanie", "Other"),
+    (at(10, 28), "-5.10", "McDonald's", "Lunch", "Eating out"),
+    (at(10, 29), "30.00", "Family", "Weekly money", "Income"),
+    (at(10, 30), "-12.99", "Steam", "Sale game", "Entertainment"),
+    (at(10, 31), "-4.20", "Greggs", "Lunch", "Eating out"),
+    (at(11, 1), "30.00", "Family", "Weekly money", "Income"),
+    (at(11, 1, 16), "48.00", "Cafe", "Saturday shift", "Income"),
+    (at(11, 1, 18), "-3.70", "Greggs", "Sausage roll", "Eating out"),
+    (at(11, 2), "-8.99", "Cineworld", "Film with friends", "Entertainment"),
+    (at(11, 2, 19), "-6.40", "McDonald's", "After the film", "Eating out"),
+    (at(11, 3), "-3.90", "Tesco", "Meal deal", "Groceries"),
+    (at(11, 3, 20), "-7.99", "Steam", "Game", "Entertainment"),
+    (at(11, 4), "-3.55", "Costa", "Hot chocolate", "Eating out"),
+    (at(11, 5), "-3.30", "Greggs", "Breakfast", "Eating out"),
+    (at(11, 5, 17), "-4.99", "PlayStation", "Add-on", "Entertainment"),
+    (at(11, 6), "-11.95", "Nando's", "With mates", "Eating out"),
+    (at(11, 6, 21), "-2.15", "Tesco", "Sweets", "Groceries"),
+    (at(11, 7), "-14.49", "Domino's", "Friday pizza", "Eating out"),
+    (at(11, 7, 15), "-8.00", "Primark", "Beanie", "Other"),
+    (at(11, 8), "-3.85", "Greggs", "Breakfast", "Eating out"),
+    (at(11, 8, 13), "-4.79", "McDonald's", "Lunch", "Eating out"),
 ]
 
-TRANSFERS = [
-    (at(10, 9), "40.00", "Cash for the week"),
-    (at(11, 4), "40.00", "Cash for the week"),
-]
-
-BUDGETS = [(2026, 10, "750.00"), (2026, 11, "750.00")]
-
-SUBSCRIPTIONS = [
-    ("Spotify Premium", "10.99"),
-    ("The Gym Group", "24.00"),
-    ("VOXI SIM", "12.00"),
-]
+BUDGETS = [(2026, 10, "120.00"), (2026, 11, "120.00")]
 
 
 def main() -> None:
@@ -92,84 +104,63 @@ def main() -> None:
     session = factory()
     try:
         accounts = {account.name: account for account in session.query(Account).filter_by(user_sub=user_sub)}
-        if "Cash" not in accounts:
-            cash = Account(id=deterministic_id(user_sub, "account", "Cash"), user_sub=user_sub, name="Cash", opening_balance=Decimal("40.00"))
-            session.add(cash)
-            accounts["Cash"] = cash
-        if "Monzo" not in accounts:
-            monzo = Account(id=deterministic_id(user_sub, "account", "Monzo"), user_sub=user_sub, name="Monzo", opening_balance=Decimal("250.00"))
-            session.add(monzo)
-            accounts["Monzo"] = monzo
+        if ACCOUNT_NAME not in accounts:
+            everyday = Account(
+                id=deterministic_id(user_sub, "account", ACCOUNT_NAME),
+                user_sub=user_sub,
+                name=ACCOUNT_NAME,
+                opening_balance=Decimal("20.00"),
+            )
+            session.add(everyday)
+            accounts[ACCOUNT_NAME] = everyday
         session.flush()
 
-        inserted = {"transactions": 0, "transfers": 0, "budgets": 0, "subscriptions": 0}
+        inserted = {"transactions": 0, "budgets": 0}
 
-        def add_transaction(row_id, account, amount, vendor, note, occurred_at, kind=TransactionKind.ordinary, transfer_id=None):
+        def add_transaction(row_id, amount, vendor, note, occurred_at, category):
             if session.get(Transaction, row_id) is not None:
                 return
             session.add(
                 Transaction(
                     id=row_id,
                     user_sub=user_sub,
-                    account_id=accounts[account].id,
+                    account_id=accounts[ACCOUNT_NAME].id,
                     amount=Decimal(amount),
-                    category=OTHER,
+                    category=category,
                     vendor=vendor,
                     note=note,
                     occurred_at=occurred_at,
-                    kind=kind,
-                    transfer_id=transfer_id,
-                    category_source=None,
+                    kind=TransactionKind.ordinary,
+                    category_source="user",
                 )
             )
-            inserted["transactions" if kind is TransactionKind.ordinary else "transfers"] += 1
+            inserted["transactions"] += 1
 
-        for occurred_at, account, amount, vendor, note in ORDINARY:
+        for occurred_at, amount, vendor, note, category in ORDINARY:
             add_transaction(
-                deterministic_id(user_sub, "transaction", occurred_at.isoformat(), account, vendor, amount),
-                account,
+                deterministic_id(user_sub, "transaction", occurred_at.isoformat(), ACCOUNT_NAME, vendor, amount),
                 amount,
                 vendor,
                 note,
                 occurred_at,
-            )
-
-        for occurred_at, amount, note in TRANSFERS:
-            transfer_id = deterministic_id(user_sub, "transfer", occurred_at.isoformat(), amount)
-            add_transaction(
-                deterministic_id(user_sub, "transaction", occurred_at.isoformat(), "Monzo", "out", amount),
-                "Monzo",
-                f"-{amount}",
-                None,
-                note,
-                occurred_at,
-                kind=TransactionKind.transfer,
-                transfer_id=transfer_id,
-            )
-            add_transaction(
-                deterministic_id(user_sub, "transaction", occurred_at.isoformat(), "Cash", "in", amount),
-                "Cash",
-                amount,
-                None,
-                note,
-                occurred_at,
-                kind=TransactionKind.transfer,
-                transfer_id=transfer_id,
+                category,
             )
 
         for year, month, amount in BUDGETS:
-            row_id = deterministic_id(user_sub, "budget", year, month)
-            if session.get(MonthlyBudget, row_id) is None:
-                session.add(MonthlyBudget(id=row_id, user_sub=user_sub, year=year, month=month, amount=Decimal(amount)))
+            already = session.query(MonthlyBudget).filter_by(user_sub=user_sub, year=year, month=month).one_or_none()
+            if already is None:
+                session.add(
+                    MonthlyBudget(
+                        id=deterministic_id(user_sub, "budget", year, month),
+                        user_sub=user_sub,
+                        year=year,
+                        month=month,
+                        amount=Decimal(amount),
+                    )
+                )
                 inserted["budgets"] += 1
 
-        for name, amount in SUBSCRIPTIONS:
-            for month in (10, 11):
-                row_id = deterministic_id(user_sub, "subscription", name, month)
-                if session.get(Subscription, row_id) is None:
-                    session.add(Subscription(id=row_id, user_sub=user_sub, name=name, amount=Decimal(amount), year=2026, month=month))
-                    inserted["subscriptions"] += 1
-
+        discard_reading(session, user_sub)
         session.commit()
         print(f"seeded {user_sub}: {inserted}")
     except Exception:

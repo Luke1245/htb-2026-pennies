@@ -39,7 +39,7 @@ async function fetchPortrait(getAccessTokenSilently, request) {
   if (!readingResponse.ok) throw new Error(loadMessage)
   const sharing = sharingResponse.ok ? await sharingResponse.json() : { mode: 'raw' }
   const reading = await readingResponse.json()
-  if (reading.reading) {
+  if (reading.stored !== false && reading.reading) {
     return { mode: sharing.mode || 'raw', portrait: reading.reading, updated: true }
   }
   const updated = await api('/reading', token, { method: 'POST' })

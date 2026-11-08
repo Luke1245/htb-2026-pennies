@@ -229,4 +229,5 @@ class PortraitOut(ApiModel):
 class ReadingOut(ApiModel):
     sharing_mode: str
     updated: bool
+    stored: bool
     reading: PortraitOut | None

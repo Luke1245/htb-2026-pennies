@@ -35,6 +35,7 @@ from pennies.reading import (
     assigned_category,
     build_reading,
     current_reading,
+    has_stored_reading,
     discard_reading,
     set_sharing_mode,
     sharing_mode,
@@ -389,6 +390,7 @@ def create_app(database_url: str | None = None, clock=None, reader=None) -> Fast
         return {
             "sharing_mode": sharing_mode(db, user_sub),
             "updated": False,
+            "stored": has_stored_reading(db, user_sub),
             "reading": current_reading(db, user_sub, request.app.state.clock()),
         }
 
@@ -399,7 +401,12 @@ def create_app(database_url: str | None = None, clock=None, reader=None) -> Fast
         user_sub: str = Depends(get_current_user),
     ):
         reading, updated = build_reading(db, user_sub, request.app.state.clock(), request.app.state.reader)
-        return {"sharing_mode": sharing_mode(db, user_sub), "updated": updated, "reading": reading}
+        return {
+            "sharing_mode": sharing_mode(db, user_sub),
+            "updated": updated,
+            "stored": has_stored_reading(db, user_sub),
+            "reading": reading,
+        }
 
     return app
 

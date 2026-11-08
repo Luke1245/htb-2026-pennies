@@ -143,7 +143,7 @@ class GeminiReader:
         )
         try:
             body = self._generate(
-                prompt, _READING_SCHEMA, temperature=0.6, max_output_tokens=1200, timeout=120
+                prompt, _READING_SCHEMA, temperature=0.6, max_output_tokens=4096, timeout=120
             )
         except (httpx.HTTPError, KeyError, IndexError, json.JSONDecodeError, TypeError):
             return None
@@ -204,6 +204,7 @@ class GeminiReader:
             "temperature": temperature,
             "responseMimeType": "application/json",
             "responseSchema": schema,
+            "thinkingConfig": {"thinkingBudget": 0},
         }
         if max_output_tokens is not None:
             generation["maxOutputTokens"] = max_output_tokens
