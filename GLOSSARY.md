@@ -54,7 +54,7 @@ A bad Spending habit Gemini expects if the user's current behaviour continues.
 _Avoid_: Forecast, prediction
 
 **Financial portrait**:
-The account owner's single current read-only in-depth reading, under the active sharing mode, of their ordinary Transactions, logged Subscriptions, current Monthly budget, Left to spend, and the Account balances that mode allows. It names their Spending habits and Projected habits and states bold assumptions about what that history implies and where the same behaviour is heading; it is built once there is an ordinary Transaction or logged Subscription to read, including when Spending habits is opened and that reading is missing, and a new ordinary Transaction, Category change, Subscription change, or sharing-mode change replaces it.
+The account owner's single current short reading, under the active sharing mode, of their ordinary Transactions, logged Subscriptions, current Monthly budget, Left to spend, and the Account balances that mode allows. It teaches what that spending means in a few plain sentences and names a few Spending habits and Projected habits; it is built once there is an ordinary Transaction or logged Subscription to read, including when Spending habits is opened and that reading is missing, and a new ordinary Transaction, Category change, Subscription change, or sharing-mode change replaces it.
 _Avoid_: Profile, persona
 
 **Guide**:
@@ -62,10 +62,10 @@ A short, curated financial-literacy article based on trusted sources, without AI
 _Avoid_: Education guide, basic advice
 
 **Education**:
-A read-only, AI-generated explanation written from the user's Financial portrait. It names the Guide it applies, or the Category, Spending habit, or Projected habit it explains when no Guide covers that subject.
+A short explanation written from the user's Financial portrait. It teaches the Guide it applies, or the Category, Spending habit, or Projected habit it explains when no Guide covers that subject.
 
 **Suggestion**:
-A read-only personalised action written from the user's Financial portrait, following from a named Education and focused primarily on current-month patterns.
+A short action for the current month, written from the user's Financial portrait and following from a named Education.
 
 **Subscription**:
 A monthly outflow the user logs apart from ordinary Transactions for one Calendar month: a name and a positive amount, with no Category. It counts towards Spent this month for that month, is part of the Financial portrait, and can shape Suggestions.
