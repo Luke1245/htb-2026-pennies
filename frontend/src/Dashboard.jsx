@@ -39,32 +39,13 @@ function whenLabel(occurredAt) {
   }).format(new Date(occurredAt))
 }
 
-async function api(path, token, options = {}) {
-  const response = await fetch(`${apiUrl}${path}`, {
-    ...options,
-    headers: {
-      Authorization: `Bearer ${token}`,
-      ...(options.body ? { 'Content-Type': 'application/json' } : {}),
-    },
-  })
-  const body = await response.json().catch(() => ({}))
-  if (!response.ok) {
-    throw new Error(body.detail || loadMessage)
-  }
-  return body
-}
-
-export default function Dashboard() {
+export default function Dashboard({ onViewSpendingHabits }) {
   const { user, logout, getAccessTokenSilently } = useAuth0()
   const { selectedGuide, openGuide, closeGuide } = useGuideRoute()
   const greeting = greetingFor(new Date())
   const name = user?.given_name || user?.name || 'Elodie'
   const [figures, setFigures] = useState(null)
   const [transactions, setTransactions] = useState([])
-  const [sharingMode, setSharingMode] = useState('raw')
-  const [portrait, setPortrait] = useState(null)
-  const [readingPending, setReadingPending] = useState(false)
-  const [readingNote, setReadingNote] = useState('')
   const [status, setStatus] = useState('')
   const [accounts, setAccounts] = useState([])
   const [formOpen, setFormOpen] = useState(false)
@@ -87,50 +68,14 @@ export default function Dashboard() {
         }
         const dashboard = await dashboardResponse.json()
         const page = await transactionResponse.json()
-        if (cancelled) return
-        setFigures(dashboard)
-        setTransactions(page.transactions)
-        await loadReading(headers, page.transactions, dashboard)
+        if (!cancelled) {
+          setFigures(dashboard)
+          setTransactions(page.transactions)
+        }
       } catch {
         if (!cancelled) {
           setStatus(afterRecord ? `${recordedMessage}. ${loadMessage}` : loadMessage)
         }
-      }
-    }
-
-    async function loadReading(headers, pageTransactions, dashboard) {
-      setReadingPending(true)
-      try {
-        const token = headers.Authorization.replace('Bearer ', '')
-        const [sharingResponse, readingResponse] = await Promise.all([
-          fetch(`${apiUrl}/sharing-mode`, { headers }),
-          fetch(`${apiUrl}/reading`, { headers }),
-        ])
-        if (cancelled) return
-        const sharing = sharingResponse.ok ? await sharingResponse.json() : { mode: 'raw' }
-        const reading = readingResponse.ok ? await readingResponse.json() : { reading: null }
-        setSharingMode(sharing.mode || 'raw')
-        setPortrait(reading.reading)
-        const hasHistory =
-          pageTransactions.some((transaction) => transaction.kind === 'ordinary') ||
-          Number(dashboard.subscriptions) > 0
-        if (!hasHistory || reading.reading) return
-        const updated = await api('/reading', token, { method: 'POST' })
-        if (cancelled) return
-        setPortrait(updated.reading)
-        setSharingMode(updated.sharing_mode)
-        if (!updated.updated) setReadingNote('Pennies could not update your reading.')
-        const [refreshedDashboard, refreshedTransactions] = await Promise.all([
-          api('/dashboard', token),
-          api('/transactions?limit=20', token),
-        ])
-        if (cancelled) return
-        setFigures(refreshedDashboard)
-        setTransactions(refreshedTransactions.transactions)
-      } catch {
-        if (!cancelled) setReadingNote('Pennies could not update your reading.')
-      } finally {
-        if (!cancelled) setReadingPending(false)
       }
     }
 
@@ -171,32 +116,7 @@ export default function Dashboard() {
     setFormOpen(false)
     setStatus(recordedMessage)
     setReloadKey((key) => key + 1)
-  }
-
-  async function onSharingMode(mode) {
-    if (mode === sharingMode) return
-    try {
-      const headers = await authHeaders(getAccessTokenSilently)
-      const saved = await api('/sharing-mode', headers.Authorization.replace('Bearer ', ''), {
-        method: 'PUT',
-        body: JSON.stringify({ mode }),
-      })
-      setSharingMode(saved.mode)
-      setPortrait(null)
-      setReadingPending(true)
-      setReadingNote('')
-      const updated = await api('/reading', headers.Authorization.replace('Bearer ', ''), {
-        method: 'POST',
-      })
-      setPortrait(updated.reading)
-      if (!updated.updated && !updated.reading) {
-        setReadingNote('Pennies could not update your reading.')
-      }
-    } catch {
-      setReadingNote('Pennies could not update your reading.')
-    } finally {
-      setReadingPending(false)
-    }
+    window.dispatchEvent(new Event('pennies:transactions-changed'))
   }
 
   const subscriptionTotal = Number(figures?.subscriptions || 0)
@@ -210,29 +130,13 @@ export default function Dashboard() {
     <div className="dashboard">
       <header className="banner">
         <h1>Pennies</h1>
-        <div className="banner-actions">
-          <button
-            type="button"
-            className={sharingMode === 'raw' ? 'sharing active' : 'sharing'}
-            onClick={() => onSharingMode('raw')}
-          >
-            Raw
-          </button>
-          <button
-            type="button"
-            className={sharingMode === 'sanitised' ? 'sharing active' : 'sharing'}
-            onClick={() => onSharingMode('sanitised')}
-          >
-            Sanitised
-          </button>
-          <button
-            type="button"
-            className="logout"
-            onClick={() => logout({ logoutParams: { returnTo: window.location.origin } })}
-          >
-            Log out
-          </button>
-        </div>
+        <button
+          type="button"
+          className="logout"
+          onClick={() => logout({ logoutParams: { returnTo: window.location.origin } })}
+        >
+          Log out
+        </button>
       </header>
       <main className="dashboard-main">
         {selectedGuide ? (
@@ -246,47 +150,6 @@ export default function Dashboard() {
             {!status && !figures && <p className="status">Loading…</p>}
             {figures && (
               <div className="tiles">
-                <details className="tile wide overview">
-                  <summary>
-                    <span>Financial portrait</span>
-                    {readingPending && <span className="overview-hint">Reading your spending…</span>}
-                  </summary>
-                  <div className="overview-body">
-                    {readingNote && <p className="status">{readingNote}</p>}
-                    {portrait ? (
-                      <>
-                        <p className="reading">{portrait.reading}</p>
-                        <h3>Spending habits</h3>
-                        <HabitList items={portrait.spending_habits} empty="No spending habits yet" />
-                        <h3>Projected habits</h3>
-                        <HabitList items={portrait.projected_habits} empty="No projected habits yet" />
-                        <h3>Education</h3>
-                        {portrait.educations.length === 0 ? (
-                          <p className="status">No education yet</p>
-                        ) : (
-                          portrait.educations.map((education) => (
-                            <article key={education.id} className="reading-block">
-                              <h4>{education.subject}</h4>
-                              <p>{education.body}</p>
-                            </article>
-                          ))
-                        )}
-                        <h3>Suggestions</h3>
-                        {portrait.suggestions.length === 0 ? (
-                          <p className="status">No suggestions yet</p>
-                        ) : (
-                          <ul className="suggestions">
-                            {portrait.suggestions.map((suggestion) => (
-                              <li key={suggestion.id}>{suggestion.body}</li>
-                            ))}
-                          </ul>
-                        )}
-                      </>
-                    ) : (
-                      !readingPending && <p className="status">No reading yet</p>
-                    )}
-                  </div>
-                </details>
                 <section className="tile">
                   <h2>Spent this month</h2>
                   <p className="stat">{pounds(figures.spent_this_month)}</p>
@@ -329,6 +192,16 @@ export default function Dashboard() {
                       )}
                     </ul>
                   )}
+                  <a
+                    href="#spending-habits"
+                    className="habits-link"
+                    onClick={(event) => {
+                      event.preventDefault()
+                      onViewSpendingHabits?.()
+                    }}
+                  >
+                    View spending habits <span aria-hidden="true">→</span>
+                  </a>
                 </section>
                 <section className="tile">
                   {!formOpen && (
@@ -379,16 +252,5 @@ export default function Dashboard() {
         )}
       </main>
     </div>
-  )
-}
-
-function HabitList({ items, empty }) {
-  if (!items || items.length === 0) return <p className="status">{empty}</p>
-  return (
-    <ul className="suggestions">
-      {items.map((item) => (
-        <li key={item}>{item}</li>
-      ))}
-    </ul>
   )
 }

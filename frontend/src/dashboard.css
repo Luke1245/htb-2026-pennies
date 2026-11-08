@@ -572,3 +572,18 @@
     padding: 18px;
   }
 }
+
+.habits-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  margin-top: 8px;
+  color: #356344;
+  font-size: 14px;
+  font-weight: 650;
+  text-decoration: none;
+}
+
+.habits-link:hover {
+  text-decoration: underline;
+}

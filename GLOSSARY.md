@@ -54,7 +54,7 @@ A bad Spending habit Gemini expects if the user's current behaviour continues.
 _Avoid_: Forecast, prediction
 
 **Financial portrait**:
-The account owner's single current read-only in-depth reading, under the active sharing mode, of their ordinary Transactions, logged Subscriptions, current Monthly budget, Left to spend, and the Account balances that mode allows. It names their Spending habits and Projected habits and states bold assumptions about what that history implies and where the same behaviour is heading; it is built once there is an ordinary Transaction or logged Subscription to read, including on the next dashboard visit when that reading is missing, and a new ordinary Transaction, Category change, Subscription change, or sharing-mode change replaces it.
+The account owner's single current read-only in-depth reading, under the active sharing mode, of their ordinary Transactions, logged Subscriptions, current Monthly budget, Left to spend, and the Account balances that mode allows. It names their Spending habits and Projected habits and states bold assumptions about what that history implies and where the same behaviour is heading; it is built once there is an ordinary Transaction or logged Subscription to read, including when Spending habits is opened and that reading is missing, and a new ordinary Transaction, Category change, Subscription change, or sharing-mode change replaces it.
 _Avoid_: Profile, persona
 
 **Guide**:
