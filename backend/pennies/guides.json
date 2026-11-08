@@ -8,14 +8,14 @@
       {
         "heading": "Start with your income",
         "paragraphs": [
-          "Add up the money you expect to receive during the month. For a student, this might include a maintenance loan or grant, part-time wages, and support from family.",
+          "Add up the money you expect to receive during the month. This might include wages from a job, money from family, and any other regular payments.",
           "If your income changes from month to month, plan around a cautious amount rather than your best month. You can revise the budget when you know you will receive more."
         ]
       },
       {
         "heading": "Cover essentials first",
         "paragraphs": [
-          "List costs such as rent, bills, food, transport, and course materials before deciding what is available for flexible spending. Include less frequent costs by breaking them into a monthly amount.",
+          "List costs such as rent, bills, food, transport, and your phone before deciding what is available for flexible spending. Include less frequent costs by breaking them into a monthly amount.",
           "When you set a monthly spending limit in Pennies, Left to spend is that limit minus your spending so far. A negative value means you have overspent; it is not the same as all the cash remaining in your account."
         ]
       },
@@ -27,14 +27,14 @@
         ]
       },
       {
-        "heading": "A student budget example",
+        "heading": "A budget example",
         "paragraphs": [
-          "This example is illustrative, not a claim about typical student income or costs. Imagine a student receives £900 from student funding and earns £300 from part-time work in a month."
+          "This example is illustrative, not a claim about typical income or costs. Imagine you receive £900 and earn £300 from part-time work in a month."
         ],
         "bullets": [
           "Income: £1,200",
           "Rent and bills: £650",
-          "Food, transport, phone, and course costs: £250",
+          "Food, transport, and phone: £250",
           "Buffer: £50",
           "Left for flexible spending: £250"
         ]
@@ -61,8 +61,8 @@
         "url": "https://www.moneyhelper.org.uk/en/everyday-money/budgeting/budget-planner"
       },
       {
-        "label": "MoneyHelper: University budgeting tips",
-        "url": "https://www.moneyhelper.org.uk/en/family-and-care/student-and-graduate-money/budgeting-for-college-or-university"
+        "label": "MoneyHelper: How to budget",
+        "url": "https://www.moneyhelper.org.uk/en/everyday-money/budgeting"
       }
     ]
   },
@@ -75,12 +75,12 @@
       {
         "heading": "Pause when someone creates pressure",
         "paragraphs": [
-          "Unexpected contact, urgent deadlines, secrecy, emotional pressure, and offers that seem too good to be true are warning signs. A message appearing to come from a friend, bank, university, or well-known company does not prove it is genuine.",
+          "Unexpected contact, urgent deadlines, secrecy, emotional pressure, and offers that seem too good to be true are warning signs. A message appearing to come from a friend, bank, or well-known company does not prove it is genuine.",
           "Stop and check through a route you trust. Use the organisation’s official website or a known phone number rather than links or contact details supplied in the message."
         ]
       },
       {
-        "heading": "Scams that can target students",
+        "heading": "Scams to watch for",
         "paragraphs": [
           "Phishing messages may ask for login or banking details. Impersonation scams may claim to be your bank, a landlord, a delivery company, or someone offering a job. Investment scams often promise guaranteed or unusually high returns and use social media or fear of missing out."
         ],

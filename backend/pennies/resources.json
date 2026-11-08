@@ -32,19 +32,19 @@
     "reviewed": "8 November 2026"
   },
   {
-    "id": "moneysavingexpert-students",
-    "title": "Student money tips",
+    "id": "moneysavingexpert-banking",
+    "title": "Bank account basics",
     "publisher": "MoneySavingExpert",
-    "url": "https://www.moneysavingexpert.com/students/",
-    "summary": "Banking, budgeting, and stretching a student loan further.",
+    "url": "https://www.moneysavingexpert.com/banking/",
+    "summary": "How everyday bank accounts work, and what to look for in one.",
     "reviewed": "8 November 2026"
   },
   {
-    "id": "gov-uk-student-finance",
-    "title": "Student finance",
-    "publisher": "GOV.UK",
-    "url": "https://www.gov.uk/student-finance",
-    "summary": "What student finance is available, who qualifies, and how repayments work.",
+    "id": "moneyhelper-savings",
+    "title": "Saving money",
+    "publisher": "MoneyHelper",
+    "url": "https://www.moneyhelper.org.uk/en/savings",
+    "summary": "Straightforward ways to start saving, even with a small amount.",
     "reviewed": "8 November 2026"
   }
 ]

@@ -35,7 +35,7 @@ def at(month: int, day: int, hour: int = 12) -> datetime:
 
 # (occurred_at, account, amount, vendor, note) — amounts as strings.
 ORDINARY = [
-    (at(10, 2), "Monzo", "850.00", "Student Finance England", "Maintenance loan"),
+    (at(10, 2), "Monzo", "850.00", "Part-time job", "Wages"),
     (at(10, 5), "Monzo", "-8.60", "Transport for London", "Oyster top-up"),
     (at(10, 6), "Monzo", "-32.40", "Tesco", "Weekly shop"),
     (at(10, 8), "Cash", "-4.80", "Caffe Nero", "Coffee before lecture"),
@@ -53,7 +53,7 @@ ORDINARY = [
     (at(10, 27), "Cash", "-18.75", "Lidl", "Weekly shop"),
     (at(10, 29), "Cash", "-5.20", "Caffe Nero", "Coffee with friends"),
     (at(11, 1), "Monzo", "-11.00", "Cineworld", "Cinema ticket"),
-    (at(11, 2), "Monzo", "850.00", "Student Finance England", "Maintenance loan"),
+    (at(11, 2), "Monzo", "850.00", "Part-time job", "Wages"),
     (at(11, 2), "Monzo", "-8.60", "Transport for London", "Oyster top-up"),
     (at(11, 3), "Monzo", "-36.20", "Tesco", "Weekly shop"),
     (at(11, 3), "Monzo", "-9.99", "Amazon", "Course textbook"),
@@ -63,7 +63,7 @@ ORDINARY = [
     (at(11, 6), "Cash", "-4.60", "Caffe Nero", "Coffee before lecture"),
     (at(11, 7), "Monzo", "-8.60", "Transport for London", "Oyster top-up"),
     (at(11, 7), "Monzo", "-22.45", "Sainsbury's", "Weekly shop"),
-    (at(11, 8, 9), "Cash", "-11.20", "Leon", "Lunch on campus"),
+    (at(11, 8, 9), "Cash", "-11.20", "Leon", "Lunch"),
 ]
 
 TRANSFERS = [

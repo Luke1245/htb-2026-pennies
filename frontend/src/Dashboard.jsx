@@ -2,7 +2,6 @@ import { useEffect, useRef, useState } from 'react'
 import { useAuth0 } from '@auth0/auth0-react'
 import { Link, useNavigate } from 'react-router'
 import './dashboard.css'
-import { AddAccount } from './AddAccount.jsx'
 import { AddTransaction } from './AddTransaction.jsx'
 import { AddTransfer } from './AddTransfer.jsx'
 import { apiUrl, authHeaders } from './api.js'
@@ -12,8 +11,27 @@ import { guides } from './guides.js'
 
 const recordedMessage = 'Transaction recorded'
 const transferRecordedMessage = 'Transfer recorded'
-const accountRecordedMessage = 'Account recorded'
 const loadMessage = 'Pennies could not load your records'
+const BUDGET_AMOUNT = /^(?:0|[1-9]\d*)(?:\.\d{1,2})?$/
+
+function londonYearMonth(date = new Date()) {
+  const parts = new Intl.DateTimeFormat('en-GB', {
+    timeZone: 'Europe/London',
+    year: 'numeric',
+    month: 'numeric',
+  }).formatToParts(date)
+  return {
+    year: Number(parts.find((part) => part.type === 'year').value),
+    month: Number(parts.find((part) => part.type === 'month').value),
+    label: new Intl.DateTimeFormat('en-GB', { timeZone: 'Europe/London', month: 'long' }).format(date),
+  }
+}
+
+function budgetPounds(raw) {
+  const text = raw.trim()
+  const [whole, fraction = ''] = text.split('.')
+  return `${whole}.${(fraction + '00').slice(0, 2)}`
+}
 
 function pounds(value) {
   const amount = Number(value)
@@ -47,10 +65,12 @@ export default function Dashboard({ name }) {
   const [accounts, setAccounts] = useState([])
   const [formOpen, setFormOpen] = useState(false)
   const [transferFormOpen, setTransferFormOpen] = useState(false)
-  const [accountFormOpen, setAccountFormOpen] = useState(false)
   const [reloadKey, setReloadKey] = useState(0)
   const [recommendedGuideIds, setRecommendedGuideIds] = useState([])
-  const [deletingId, setDeletingId] = useState('')
+  const [budgetFormOpen, setBudgetFormOpen] = useState(false)
+  const [budgetDraft, setBudgetDraft] = useState('')
+  const [budgetProblem, setBudgetProblem] = useState('')
+  const [savingBudget, setSavingBudget] = useState(false)
   const recordedLabel = useRef('')
 
   useEffect(() => {
@@ -106,49 +126,42 @@ export default function Dashboard({ name }) {
     }
   }, [getAccessTokenSilently, reloadKey])
 
-  function openAccountForm() {
-    if (accountFormOpen) return
-    setFormOpen(false)
-    setTransferFormOpen(false)
-    setStatus('')
-    setAccountFormOpen(true)
+  function openBudgetForm() {
+    setBudgetDraft(figures?.monthly_budget ?? '')
+    setBudgetProblem('')
+    setBudgetFormOpen(true)
   }
 
-  function closeAccountForm() {
-    setAccountFormOpen(false)
-  }
-
-  async function removeTransaction(transaction) {
-    setDeletingId(transaction.id)
-    setStatus('')
+  async function saveBudget(event) {
+    event.preventDefault()
+    if (savingBudget) return
+    const amount = budgetDraft.trim()
+    if (!BUDGET_AMOUNT.test(amount)) {
+      setBudgetProblem('Enter a budget in pounds and pence.')
+      return
+    }
+    setSavingBudget(true)
+    setBudgetProblem('')
+    const period = londonYearMonth()
     try {
       const headers = await authHeaders(getAccessTokenSilently)
-      const response = await fetch(`${apiUrl}/transactions/${transaction.id}`, {
-        method: 'DELETE',
-        headers,
+      const response = await fetch(`${apiUrl}/monthly-budgets/${period.year}/${period.month}`, {
+        method: 'PUT',
+        headers: { ...headers, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ amount: budgetPounds(amount) }),
       })
-      if (!response.ok) throw new Error('Pennies could not delete this transaction')
-      const body = await response.json()
-      const removed = new Set(body.ids || [transaction.id])
-      setTransactions((current) => current.filter((item) => !removed.has(item.id)))
+      if (!response.ok) throw new Error('Pennies could not save this budget')
+      setBudgetFormOpen(false)
       setReloadKey((key) => key + 1)
-      window.dispatchEvent(new Event('pennies:transactions-changed'))
     } catch {
-      setStatus('Pennies could not delete this transaction')
+      setBudgetProblem('Pennies could not save this budget')
     } finally {
-      setDeletingId('')
+      setSavingBudget(false)
     }
-  }
-
-  function handleAccountRecorded() {
-    setAccountFormOpen(false)
-    setStatus(accountRecordedMessage)
-    setReloadKey((key) => key + 1)
   }
 
   async function openForm() {
     if (formOpen) return
-    setAccountFormOpen(false)
     setTransferFormOpen(false)
     try {
       const headers = await authHeaders(getAccessTokenSilently)
@@ -177,7 +190,6 @@ export default function Dashboard({ name }) {
   async function openTransfer() {
     if (transferFormOpen) return
     setFormOpen(false)
-    setAccountFormOpen(false)
     try {
       const headers = await authHeaders(getAccessTokenSilently)
       const response = await fetch(`${apiUrl}/accounts`, { headers })
@@ -253,8 +265,46 @@ export default function Dashboard({ name }) {
                   <p className="stat">{pounds(figures.spent_this_month)}</p>
                 </section>
                 <section className="tile">
-                  <h2>Left to spend</h2>
-                  <p className="stat">{pounds(figures.left_to_spend)}</p>
+                  <div className="tile-heading">
+                    <h2>Left to spend</h2>
+                    {!budgetFormOpen && (
+                      <button type="button" className="add-account" onClick={openBudgetForm}>
+                        {figures.monthly_budget == null ? 'Set budget' : 'Edit budget'}
+                      </button>
+                    )}
+                  </div>
+                  {budgetFormOpen ? (
+                    <form className="record-form" aria-label="Monthly budget" onSubmit={saveBudget}>
+                      <label>
+                        {londonYearMonth().label} budget
+                        <input
+                          inputMode="decimal"
+                          value={budgetDraft}
+                          onChange={(event) => setBudgetDraft(event.target.value)}
+                        />
+                      </label>
+                      {budgetProblem && (
+                        <p className="form-problem" role="alert">
+                          {budgetProblem}
+                        </p>
+                      )}
+                      <div className="form-actions">
+                        <button type="submit" disabled={savingBudget}>
+                          Save budget
+                        </button>
+                        <button type="button" onClick={() => setBudgetFormOpen(false)} disabled={savingBudget}>
+                          Cancel
+                        </button>
+                      </div>
+                    </form>
+                  ) : (
+                    <>
+                      <p className="stat">{pounds(figures.left_to_spend)}</p>
+                      {figures.monthly_budget != null && (
+                        <p className="status">Budget {pounds(figures.monthly_budget)}</p>
+                      )}
+                    </>
+                  )}
                 </section>
                 <section className="tile">
                   <h2>Spending insights</h2>
@@ -295,17 +345,10 @@ export default function Dashboard({ name }) {
                   </Link>
                 </section>
                 <section className="tile">
-                  {!formOpen && !transferFormOpen && !accountFormOpen && (
+                  {!formOpen && !transferFormOpen && (
                     <div className="tile-heading">
                       <h2>Recent transactions</h2>
                       <div className="tile-actions">
-                        <button
-                          type="button"
-                          className="add-account"
-                          onClick={openAccountForm}
-                        >
-                          Add account
-                        </button>
                         <button type="button" className="add-transfer" onClick={openTransfer}>
                           Transfer
                         </button>
@@ -314,13 +357,6 @@ export default function Dashboard({ name }) {
                         </button>
                       </div>
                     </div>
-                  )}
-                  {accountFormOpen && (
-                    <AddAccount
-                      getAccessTokenSilently={getAccessTokenSilently}
-                      onRecorded={handleAccountRecorded}
-                      onCancel={closeAccountForm}
-                    />
                   )}
                   {transferFormOpen && (
                     <AddTransfer
@@ -355,15 +391,6 @@ export default function Dashboard({ name }) {
                             </small>
                           </span>
                           <span>{signedPounds(transaction.amount)}</span>
-                          <button
-                            type="button"
-                            className="delete-transaction"
-                            aria-label={`Delete ${movementName(transaction)}`}
-                            disabled={deletingId === transaction.id}
-                            onClick={() => removeTransaction(transaction)}
-                          >
-                            Delete
-                          </button>
                         </li>
                       ))}
                     </ul>

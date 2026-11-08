@@ -94,7 +94,7 @@ test('user can open the budgeting guide and return to the dashboard', async () =
     screen.getByRole('heading', { name: 'Budgeting basics', level: 1 }),
   ).toBeInTheDocument()
   expect(
-    screen.getByRole('heading', { name: /student budget example/i }),
+    screen.getByRole('heading', { name: 'A budget example' }),
   ).toBeInTheDocument()
   expect(screen.queryByText('Spent this month')).not.toBeInTheDocument()
 
@@ -214,6 +214,70 @@ function renderRecords(handler) {
   return calls
 }
 
+test('a monthly budget can be set from left to spend', async () => {
+  const user = userEvent.setup()
+  useAuth0.mockReturnValue({
+    user: { given_name: 'Elodie' },
+    logout: vi.fn(),
+    getAccessTokenSilently: vi.fn().mockResolvedValue('test-token'),
+  })
+  const period = new Intl.DateTimeFormat('en-GB', {
+    timeZone: 'Europe/London',
+    year: 'numeric',
+    month: 'numeric',
+  }).formatToParts(new Date())
+  const year = period.find((part) => part.type === 'year').value
+  const month = period.find((part) => part.type === 'month').value
+  let saved = null
+  const calls = []
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(async (url, options = {}) => {
+      const path = String(url)
+      calls.push({ path, method: options.method, body: options.body })
+      if (options.method === 'PUT' && path.includes('/monthly-budgets/')) {
+        saved = JSON.parse(options.body).amount
+        return json({ year: Number(year), month: Number(month), amount: saved })
+      }
+      if (path.includes('/dashboard')) {
+        return json({
+          spent_this_month: '10.00',
+          left_to_spend: saved ? '90.00' : '40.00',
+          monthly_budget: saved,
+          categories: [],
+          subscriptions: '0.00',
+        })
+      }
+      if (path.includes('/transactions')) return json({ transactions: [] })
+      if (path.includes('/reading')) return json({ sharing_mode: 'raw', updated: false, reading: null })
+      return json({})
+    }),
+  )
+  renderAt('/')
+
+  const heading = await screen.findByRole('heading', { name: 'Left to spend' })
+  const tile = () => heading.closest('section')
+  expect(within(tile()).getByText('£40.00')).toBeInTheDocument()
+
+  await user.click(within(tile()).getByRole('button', { name: 'Set budget' }))
+  const budgetField = () => within(tile()).getByRole('textbox', { name: /budget/i })
+  await user.type(budgetField(), '-5')
+  await user.click(screen.getByRole('button', { name: 'Save budget' }))
+  expect(screen.getByRole('alert')).toHaveTextContent('Enter a budget in pounds and pence.')
+  expect(calls.some((call) => call.method === 'PUT')).toBe(false)
+
+  await user.clear(budgetField())
+  await user.type(budgetField(), '100')
+  await user.click(screen.getByRole('button', { name: 'Save budget' }))
+
+  const savedCall = calls.find((call) => call.method === 'PUT')
+  expect(savedCall.path).toContain(`/monthly-budgets/${year}/${month}`)
+  expect(JSON.parse(savedCall.body)).toEqual({ amount: '100.00' })
+  expect(await within(tile()).findByText('£90.00')).toBeInTheDocument()
+  expect(within(tile()).getByText('Budget £100.00')).toBeInTheDocument()
+  expect(within(tile()).getByRole('button', { name: 'Edit budget' })).toBeInTheDocument()
+})
+
 test('an Account is required before the form opens', async () => {
   const user = userEvent.setup()
   renderRecords((call) => {
@@ -225,36 +289,8 @@ test('an Account is required before the form opens', async () => {
   await user.click(await screen.findByRole('button', { name: 'Add transaction' }))
 
   expect(screen.getByText('An Account is needed.')).toBeInTheDocument()
+  expect(screen.queryByRole('button', { name: 'Add account' })).not.toBeInTheDocument()
   expect(screen.queryByLabelText('Vendor')).not.toBeInTheDocument()
-})
-
-test('user records an Account from beside Add transaction', async () => {
-  const user = userEvent.setup()
-  const calls = renderRecords((call) => {
-    if (call.url.endsWith('/accounts') && call.options.method === 'POST') {
-      return ok({ id: 'acc-1', name: 'Cash', opening_balance: '40.00', calculated_balance: '40.00' })
-    }
-    if (call.url.includes('/transactions')) return ok({ transactions: [] })
-    return ok({ spent_this_month: '0.00', left_to_spend: '0.00', categories: [] })
-  })
-
-  expect(await screen.findByRole('button', { name: 'Add transaction' })).toBeInTheDocument()
-  await user.click(screen.getByRole('button', { name: 'Add account' }))
-  await user.type(screen.getByLabelText('Name'), 'Cash')
-  await user.clear(screen.getByLabelText('Opening balance'))
-  await user.type(screen.getByLabelText('Opening balance'), '40')
-  await user.click(screen.getByRole('button', { name: 'Add account' }))
-
-  expect(await screen.findByText('Account recorded')).toBeInTheDocument()
-  expect(screen.getByRole('button', { name: 'Add transaction' })).toBeInTheDocument()
-  expect(screen.queryByLabelText('Name')).not.toBeInTheDocument()
-
-  const post = calls.find((call) => call.options.method === 'POST')
-  expect(JSON.parse(post.options.body)).toEqual({
-    name: 'Cash',
-    opening_balance: '40.00',
-  })
-  expect(post.options.headers.Authorization).toBe('Bearer test-token')
 })
 
 test('a failed Account load keeps the form closed', async () => {
@@ -390,7 +426,7 @@ test('user transfers money between two Accounts without counting it as spending'
   await user.click(screen.getByRole('button', { name: 'Transfer' }))
 
   expect(await screen.findByText('Transfer recorded')).toBeInTheDocument()
-  expect(screen.getAllByRole('button', { name: 'Delete Transfer' })).toHaveLength(2)
+  expect(screen.queryByRole('button', { name: /Delete/ })).not.toBeInTheDocument()
   expect(screen.getByText('Cash · 3 Nov')).toBeInTheDocument()
   expect(screen.getByText('Bank · 3 Nov')).toBeInTheDocument()
   expect(screen.getByText('-£20.00')).toBeInTheDocument()
@@ -595,69 +631,12 @@ test('recent transactions shows three entries and opens the transactions screen'
   expect(screen.getByText('Pret')).toBeInTheDocument()
   expect(screen.getByText('Cafe')).toBeInTheDocument()
   expect(screen.queryByText('Old shop')).not.toBeInTheDocument()
+  expect(screen.queryByRole('button', { name: /Delete/ })).not.toBeInTheDocument()
   expect(calls.some((path) => path.includes('/transactions?limit=3'))).toBe(true)
 
   await user.click(screen.getByRole('link', { name: 'View all transactions' }))
   expect(router.state.location.pathname).toBe('/transactions')
   expect(screen.getByRole('heading', { name: 'Transactions' })).toBeInTheDocument()
-})
-
-test('a recent transaction can be deleted', async () => {
-  const user = userEvent.setup()
-  useAuth0.mockReturnValue({
-    user: { given_name: 'Elodie' },
-    logout: vi.fn(),
-    getAccessTokenSilently: vi.fn().mockResolvedValue('test-token'),
-  })
-  const calls = []
-  vi.stubGlobal(
-    'fetch',
-    vi.fn(async (url, options = {}) => {
-      const path = String(url)
-      calls.push({ path, method: options.method })
-      if (options.method === 'DELETE') return json({ deleted: true, ids: ['tx-1'] })
-      if (path.includes('/dashboard')) {
-        return json({
-          spent_this_month: '0.00',
-          left_to_spend: '40.00',
-          monthly_budget: null,
-          categories: [],
-          subscriptions: '0.00',
-        })
-      }
-      if (path.includes('/transactions')) {
-        const hidden = calls.some((call) => call.method === 'DELETE')
-        return json({
-          transactions: [
-            {
-              id: 'tx-1',
-              vendor: 'Tesco',
-              category: 'Groceries',
-              occurred_at: '2026-11-08T00:00:00+00:00',
-              amount: '-6.00',
-            },
-            {
-              id: 'tx-2',
-              vendor: 'Pret',
-              category: 'Eating out',
-              occurred_at: '2026-11-08T00:00:00+00:00',
-              amount: '-3.00',
-            },
-          ].filter((transaction) => !(hidden && transaction.id === 'tx-1')),
-        })
-      }
-      if (path.includes('/reading')) return json({ sharing_mode: 'raw', updated: false, reading: null })
-      return json({})
-    }),
-  )
-  renderAt('/')
-
-  expect(await screen.findByText('Tesco')).toBeInTheDocument()
-  await user.click(screen.getByRole('button', { name: 'Delete Tesco' }))
-
-  expect(calls.some((call) => call.method === 'DELETE' && call.path.includes('/transactions/tx-1'))).toBe(true)
-  expect(screen.queryByText('Tesco')).not.toBeInTheDocument()
-  expect(screen.getByText('Pret')).toBeInTheDocument()
 })
 
 test('one recorded outflow shows up in spending insights', async () => {

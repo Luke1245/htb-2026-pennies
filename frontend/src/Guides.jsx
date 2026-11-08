@@ -93,7 +93,7 @@ export function GuideCards({ guides, onSelect, recommendedIds = [] }) {
   return (
     <section className="guides" aria-labelledby="guides-heading">
       <h2 id="guides-heading">Guides</h2>
-      <p>Trusted, practical financial literacy for student life.</p>
+      <p>Trusted, practical help with your money.</p>
       <div className="guide-cards">
         {guides.map((guide) => (
           <button

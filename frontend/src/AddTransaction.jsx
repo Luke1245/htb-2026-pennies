@@ -258,6 +258,7 @@ export function AddTransaction({
                 key={name}
                 role="option"
                 aria-selected={index === activeVendor}
+                onMouseEnter={() => setActiveVendor(index)}
                 onMouseDown={(event) => {
                   event.preventDefault()
                   chooseVendor(name)
