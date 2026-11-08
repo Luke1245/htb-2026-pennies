@@ -1,15 +1,31 @@
-import { fireEvent, render, screen, within } from '@testing-library/react'
+import { act, fireEvent, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { useAuth0 } from '@auth0/auth0-react'
+import { createMemoryRouter, RouterProvider } from 'react-router'
 import { expect, test, vi } from 'vitest'
 import Dashboard from './Dashboard.jsx'
+import { GuidePage } from './Guides.jsx'
 import { guides } from './guides.js'
 
 vi.mock('@auth0/auth0-react', () => ({
   useAuth0: vi.fn(),
 }))
 
-function renderDashboard({ reading = null, ...props } = {}) {
+function renderAt(path) {
+  const router = createMemoryRouter(
+    [
+      { path: '/', element: <Dashboard /> },
+      { path: '/guides/:guideId', element: <GuidePage /> },
+      { path: '/spending-habits', element: <h2>Spending habits</h2> },
+      { path: '/recommendations', element: <h2>Recommendations</h2> },
+    ],
+    { initialEntries: [path] },
+  )
+  render(<RouterProvider router={router} />)
+  return router
+}
+
+function renderDashboard({ reading = null, path = '/' } = {}) {
   useAuth0.mockReturnValue({
     user: { given_name: 'Elodie' },
     logout: vi.fn(),
@@ -36,7 +52,7 @@ function renderDashboard({ reading = null, ...props } = {}) {
     }),
   )
 
-  return render(<Dashboard {...props} />)
+  return renderAt(path)
 }
 
 function json(body) {
@@ -116,14 +132,14 @@ test('badges the guides named in the current portrait recommendations', async ()
   expect(within(scam).queryByText('Recommended')).not.toBeInTheDocument()
 })
 
-test('links to the Recommendations section', async () => {
+test('links to the Recommendations screen', async () => {
   const user = userEvent.setup()
-  const onViewRecommendations = vi.fn()
-  renderDashboard({ onViewRecommendations })
+  const router = renderDashboard()
 
   await user.click(await screen.findByRole('link', { name: /recommends for you/i }))
 
-  expect(onViewRecommendations).toHaveBeenCalled()
+  expect(router.state.location.pathname).toBe('/recommendations')
+  expect(screen.getByRole('heading', { name: 'Recommendations' })).toBeInTheDocument()
 })
 
 test('user can read long-term investing guidance and risk warnings', async () => {
@@ -168,7 +184,7 @@ function renderRecords(handler) {
       return handler(call)
     }),
   )
-  render(<Dashboard />)
+  renderAt('/')
   return calls
 }
 
@@ -376,24 +392,24 @@ async function expectBackOnDashboard(guideTitle) {
 
 test('pressing browser back button while viewing a guide returns to dashboard', async () => {
   const user = userEvent.setup()
-  renderDashboard()
+  const router = renderDashboard()
 
   await user.click(screen.getByRole('button', { name: /budgeting basics/i }))
   expect(
     screen.getByRole('heading', { name: 'Budgeting basics', level: 1 }),
   ).toBeInTheDocument()
-  expect(window.location.hash).toBe('#guide/budgeting-basics')
+  expect(router.state.location.pathname).toBe('/guides/budgeting-basics')
 
-  // Browser Back steps off the pushed guide entry onto the dashboard entry
-  window.location.hash = ''
-  window.dispatchEvent(new PopStateEvent('popstate'))
+  await act(async () => {
+    await router.navigate(-1)
+  })
 
   await expectBackOnDashboard('Budgeting basics')
 })
 
 test('clicking Back to dashboard closes the guide and clears the URL', async () => {
   const user = userEvent.setup()
-  renderDashboard()
+  const router = renderDashboard()
 
   await user.click(screen.getByRole('button', { name: /budgeting basics/i }))
   expect(
@@ -403,13 +419,12 @@ test('clicking Back to dashboard closes the guide and clears the URL', async () 
   await user.click(screen.getByRole('button', { name: /back to dashboard/i }))
 
   await expectBackOnDashboard('Budgeting basics')
-  expect(window.location.hash).toBe('')
+  expect(router.state.location.pathname).toBe('/')
 })
 
 test('guide opened directly from its URL closes to the dashboard, not away from the app', async () => {
   const user = userEvent.setup()
-  window.location.hash = '#guide/scam-avoidance'
-  renderDashboard()
+  const router = renderDashboard({ path: '/guides/scam-avoidance' })
 
   expect(
     await screen.findByRole('heading', { name: 'Scam avoidance', level: 1 }),
@@ -418,13 +433,11 @@ test('guide opened directly from its URL closes to the dashboard, not away from 
   await user.click(screen.getByRole('button', { name: /back to dashboard/i }))
 
   await expectBackOnDashboard('Scam avoidance')
-  expect(window.location.hash).toBe('')
+  expect(router.state.location.pathname).toBe('/')
 })
 
-test('an external hash change opens the matching guide', async () => {
-  renderDashboard()
-
-  window.location.hash = 'guide/investing-basics'
+test('opening a guide URL shows that guide', async () => {
+  renderDashboard({ path: '/guides/investing-basics' })
 
   expect(
     await screen.findByRole('heading', { name: 'Investing basics', level: 1 }),
