@@ -1,7 +1,35 @@
 import { useEffect, useRef, useState } from 'react'
 import { apiUrl, authHeaders } from './api.js'
-import { londonDate, transactionBody, validationMessage } from './transactionForm.js'
+import {
+  amountMessage,
+  londonDate,
+  signedAmount,
+  transactionBody,
+  validationMessage,
+} from './transactionForm.js'
 import { fetchVendorNames, matchingVendors } from './vendorSearch.js'
+
+const CATEGORIES = [
+  'Groceries',
+  'Transport',
+  'Eating out',
+  'Entertainment',
+  'Income',
+  'Other',
+]
+const NOTE_DELAY_MS = 150
+
+function categoryRequest(vendor, note, amount, direction) {
+  const vendorName = vendor.trim()
+  const noteText = note.trim()
+  const amountReady =
+    (direction === 'inflow' || direction === 'outflow') && !amountMessage(amount)
+  return {
+    vendor: vendorName,
+    note: noteText || null,
+    ...(amountReady ? { amount: signedAmount(amount, direction) } : {}),
+  }
+}
 
 export function AddTransaction({
   accounts,
@@ -18,6 +46,8 @@ export function AddTransaction({
   const [amount, setAmount] = useState('')
   const [vendor, setVendor] = useState('')
   const [note, setNote] = useState('')
+  const [category, setCategory] = useState({ key: '', name: '' })
+  const [committedVendor, setCommittedVendor] = useState('')
   const [when, setWhen] = useState(() => londonDate(clock()))
   const [problem, setProblem] = useState('')
   const [sending, setSending] = useState(false)
@@ -25,6 +55,7 @@ export function AddTransaction({
   const [vendorsOpen, setVendorsOpen] = useState(false)
   const [activeVendor, setActiveVendor] = useState(0)
   const saving = useRef(false)
+  const requestNow = useRef(false)
   const vendorMatches = matchingVendors(knownVendors, vendor)
 
   useEffect(() => {
@@ -43,9 +74,55 @@ export function AddTransaction({
     }
   }, [getAccessTokenSilently])
 
+  const typedVendor = vendor.trim()
+  const vendorReady =
+    committedVendor.length >= 2 &&
+    typedVendor.toLowerCase() === committedVendor.toLowerCase()
+  const categoryKey = JSON.stringify(categoryRequest(vendor, note, amount, direction))
+  const selectedCategory = vendorReady && category.key === categoryKey ? category.name : ''
+
+  useEffect(() => {
+    if (!vendorReady) return undefined
+    const request = categoryRequest(vendor, note, amount, direction)
+    const key = JSON.stringify(request)
+    let cancelled = false
+    const delay = requestNow.current ? 0 : NOTE_DELAY_MS
+    const timer = setTimeout(async () => {
+      requestNow.current = false
+      try {
+        const headers = await authHeaders(getAccessTokenSilently)
+        const response = await fetch(`${apiUrl}/category-suggestions`, {
+          method: 'POST',
+          headers: { ...headers, 'Content-Type': 'application/json' },
+          body: JSON.stringify(request),
+        })
+        if (!response.ok) throw new Error('Pennies could not choose a category')
+        const body = await response.json()
+        if (!cancelled && CATEGORIES.includes(body.category)) {
+          setCategory({ key, name: body.category })
+        }
+      } catch {
+        if (!cancelled) setCategory({ key, name: '' })
+      }
+    }, delay)
+    return () => {
+      cancelled = true
+      clearTimeout(timer)
+    }
+  }, [vendorReady, vendor, note, amount, direction, getAccessTokenSilently])
+
+  function commitVendor(name) {
+    const trimmed = name.trim()
+    if (trimmed.length < 2) return
+    if (trimmed.toLowerCase() === committedVendor.toLowerCase()) return
+    requestNow.current = true
+    setCommittedVendor(trimmed)
+  }
+
   function chooseVendor(name) {
     setVendor(name)
     setVendorsOpen(false)
+    commitVendor(name)
   }
 
   function onVendorKey(event) {
@@ -157,12 +234,20 @@ export function AddTransaction({
           value={vendor}
           maxLength={120}
           onChange={(event) => {
-            setVendor(event.target.value)
+            const value = event.target.value
+            setVendor(value)
             setVendorsOpen(true)
             setActiveVendor(0)
+            const known = knownVendors.find(
+              (name) => name.toLowerCase() === value.trim().toLowerCase(),
+            )
+            if (known) commitVendor(known)
           }}
           onFocus={() => setVendorsOpen(true)}
-          onBlur={() => setVendorsOpen(false)}
+          onBlur={() => {
+            setVendorsOpen(false)
+            commitVendor(vendor)
+          }}
           onKeyDown={onVendorKey}
         />
         {vendorsOpen && vendorMatches.length > 0 && (
@@ -200,8 +285,13 @@ export function AddTransaction({
             />
           </svg>
         </span>
-        <select disabled defaultValue="">
+        <select disabled value={selectedCategory} onChange={() => {}}>
           <option value="" />
+          {CATEGORIES.map((name) => (
+            <option key={name} value={name}>
+              {name}
+            </option>
+          ))}
         </select>
       </label>
       <label>

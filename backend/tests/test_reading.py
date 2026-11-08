@@ -43,6 +43,45 @@ class FakeReader:
         )
 
 
+def test_vendor_and_note_select_a_category_once():
+    reader = FakeReader()
+    client, _holder = make_client(reader=reader)
+    cash = account(client)
+    suggested = client.post(
+        "/category-suggestions",
+        json={"vendor": "Pret", "note": "  lunch  ", "amount": "-3.40"},
+    )
+    assert suggested.status_code == 200, suggested.text
+    assert suggested.json()["category"] == "Groceries"
+    assert reader.facts[-1]["vendor"] == "Pret"
+    assert reader.facts[-1]["note"] == "lunch"
+    assert reader.facts[-1]["amount"] == "-3.40"
+
+    created = client.post(
+        "/transactions",
+        json={
+            "account_id": cash["id"],
+            "amount": "-3.40",
+            "vendor": "Pret",
+            "note": "lunch",
+            "occurred_at": "2026-11-02T10:00:00+00:00",
+        },
+    )
+    assert created.status_code == 200, created.text
+    assert created.json()["category"] == "Groceries"
+    assert len(reader.facts) == 1
+
+    reader.fail_categorise = True
+    missed = client.post(
+        "/category-suggestions",
+        json={"vendor": "Unknown stall", "note": None, "amount": "-1.00"},
+    )
+    assert missed.status_code == 200
+    assert missed.json()["category"] == "Other"
+    blank = client.post("/category-suggestions", json={"vendor": "  ", "note": "lunch"})
+    assert blank.status_code == 422
+
+
 def test_gemini_assigns_once_and_a_user_edit_sticks():
     reader = FakeReader()
     reader.fail_categorise = True
@@ -177,6 +216,7 @@ def test_gemini_client_reads_structured_json(monkeypatch):
         assert "gemini-3.5-flash" in url
         prompt = json["contents"][0]["parts"][0]["text"]
         if prompt.startswith("Assign"):
+            assert "Decide from the vendor and the note." in prompt
             assert json["generationConfig"]["temperature"] == 0
             text = '{"category": "Transport"}'
         else:

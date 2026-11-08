@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { expect, test, vi } from 'vitest'
 import { AddTransaction } from './AddTransaction.jsx'
@@ -36,7 +36,10 @@ function renderForm({ fetchImpl, ...props } = {}) {
 }
 
 function postCalls(fetchMock) {
-  return fetchMock.mock.calls.filter(([, options]) => options?.method === 'POST')
+  return fetchMock.mock.calls.filter(
+    ([url, options]) =>
+      options?.method === 'POST' && !String(url).endsWith('/category-suggestions'),
+  )
 }
 
 async function fillOutflow(user) {
@@ -151,6 +154,66 @@ test('vendor suggestions fuzzy-match ordinary vendors', async () => {
   expect(screen.queryByRole('option', { name: 'Adjustment' })).not.toBeInTheDocument()
   await user.click(screen.getByRole('option', { name: 'Pret' }))
   expect(vendor).toHaveValue('Pret')
+})
+
+test('a finished vendor selects a category and notes update it', async () => {
+  const user = userEvent.setup()
+  const calls = []
+  renderForm({
+    fetchImpl: async (url, options = {}) => {
+      if (String(url).endsWith('/category-suggestions')) {
+        const body = JSON.parse(options.body)
+        calls.push(body)
+        const category = body.vendor === 'Pret' && body.note === 'lunch' ? 'Eating out' : 'Other'
+        return { ok: true, json: async () => ({ category }) }
+      }
+      return emptyVendors()
+    },
+  })
+
+  const vendor = screen.getByLabelText('Vendor')
+  await user.type(vendor, 'Pret')
+  expect(calls).toHaveLength(0)
+  expect(screen.getByLabelText('Category')).toHaveValue('')
+
+  fireEvent.blur(vendor)
+  await waitFor(() => expect(screen.getByLabelText('Category')).toHaveValue('Other'))
+  expect(calls).toEqual([{ vendor: 'Pret', note: null }])
+
+  await user.type(screen.getByLabelText('Note'), 'lunch')
+  await waitFor(() => expect(screen.getByLabelText('Category')).toHaveValue('Eating out'))
+  expect(calls.at(-1)).toEqual({ vendor: 'Pret', note: 'lunch' })
+  expect(screen.getByLabelText('Category')).toBeDisabled()
+})
+
+test('a known vendor selects a category as soon as the name is complete', async () => {
+  const user = userEvent.setup()
+  const calls = []
+  renderForm({
+    fetchImpl: async (url, options = {}) => {
+      if (String(url).endsWith('/category-suggestions')) {
+        calls.push(JSON.parse(options.body))
+        return { ok: true, json: async () => ({ category: 'Groceries' }) }
+      }
+      return {
+        ok: true,
+        json: async () => ({
+          transactions: [{ vendor: 'Tesco', kind: 'ordinary' }],
+          next_offset: null,
+        }),
+      }
+    },
+  })
+
+  const vendor = screen.getByLabelText('Vendor')
+  await user.click(vendor)
+  expect(await screen.findByRole('option', { name: 'Tesco' })).toBeInTheDocument()
+  await user.type(vendor, 'Tes')
+  expect(calls).toHaveLength(0)
+
+  await user.type(vendor, 'co')
+  await waitFor(() => expect(screen.getByLabelText('Category')).toHaveValue('Groceries'))
+  expect(calls).toEqual([{ vendor: 'Tesco', note: null }])
 })
 
 test('Cancel discards the form', async () => {
