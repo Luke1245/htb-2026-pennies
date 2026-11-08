@@ -11,6 +11,7 @@ _READING_SCHEMA = {
     "properties": {
         "reading": {"type": "STRING"},
         "spending_habits": {"type": "ARRAY", "items": {"type": "STRING"}},
+        "tradeoffs": {"type": "ARRAY", "items": {"type": "STRING"}},
         "projected_habits": {"type": "ARRAY", "items": {"type": "STRING"}},
         "educations": {
             "type": "ARRAY",
@@ -55,6 +56,7 @@ _READING_SCHEMA = {
     "required": [
         "reading",
         "spending_habits",
+        "tradeoffs",
         "projected_habits",
         "educations",
         "suggestions",
@@ -63,6 +65,7 @@ _READING_SCHEMA = {
     "propertyOrdering": [
         "reading",
         "spending_habits",
+        "tradeoffs",
         "projected_habits",
         "educations",
         "suggestions",
@@ -131,8 +134,13 @@ class GeminiReader:
             "Be short, plain, and straight to the point. Teach one clear lesson. No jargon and no lecture. "
             "The reading is one or two short sentences: where the money is going, and the one thing worth learning from it. "
             "Give at most three spending habits. Each is one sentence naming a real pattern, good or bad, and why it matters. "
+            "When tradeoff_facts is present, write one trade-off from those figures only. "
+            "Say the treat total could instead have gone to more of that hobby, and include both treat_total and hobby_total with a £ sign. "
+            "Name hobby_vendor when it is present. Do not introduce any other amount. "
+            "When tradeoff_facts is absent, return no trade-offs. "
             "Give at most two projected habits. Each is one sentence on what gets worse if this continues. "
-            "Give at most two educations. Each teaches one idea from this spending, in two short sentences. "
+            "Give at most two educations. Each teaches one idea from this person's own spending, in two short sentences. "
+            "Name a category, habit, vendor, or amount that appears in the history, so the lesson is about them and not a general article. "
             "Apply a supplied guide by its guide_id when it fits. Otherwise explain the category, spending habit, "
             "or projected habit, and leave guide_id empty. "
             "Give at most two suggestions. Each follows one education by education_index and is one thing to do this month. "
@@ -143,7 +151,7 @@ class GeminiReader:
         )
         try:
             body = self._generate(
-                prompt, _READING_SCHEMA, temperature=0.6, max_output_tokens=1200, timeout=120
+                prompt, _READING_SCHEMA, temperature=0.6, max_output_tokens=4096, timeout=120
             )
         except (httpx.HTTPError, KeyError, IndexError, json.JSONDecodeError, TypeError):
             return None
@@ -185,6 +193,7 @@ class GeminiReader:
         return ReadingDraft(
             reading=_opening(str(body.get("reading") or "")),
             spending_habits=_short_lines(body.get("spending_habits"), 3),
+            tradeoffs=_short_lines(body.get("tradeoffs"), 2),
             projected_habits=_short_lines(body.get("projected_habits"), 2),
             educations=educations[:2],
             suggestions=suggestions[:2],
@@ -204,6 +213,7 @@ class GeminiReader:
             "temperature": temperature,
             "responseMimeType": "application/json",
             "responseSchema": schema,
+            "thinkingConfig": {"thinkingBudget": 0},
         }
         if max_output_tokens is not None:
             generation["maxOutputTokens"] = max_output_tokens

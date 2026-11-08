@@ -29,32 +29,19 @@ function PenniesShell({ children, onLogout }) {
   )
 }
 
-function Welcome({ error }) {
+function RedirectToLogin() {
   const { loginWithRedirect } = useAuth0()
+  const started = useRef(false)
+
+  useEffect(() => {
+    if (started.current) return
+    started.current = true
+    loginWithRedirect()
+  }, [loginWithRedirect])
 
   return (
     <PenniesShell>
-      <section className="auth-panel">
-        <h2>Welcome</h2>
-        <p>Log in or create an account to see your spending.</p>
-        {error && <p className="status">Error: {error.message}</p>}
-        <div className="auth-actions">
-          <button type="button" className="primary" onClick={() => loginWithRedirect()}>
-            Log in
-          </button>
-          <button
-            type="button"
-            className="secondary"
-            onClick={() =>
-              loginWithRedirect({
-                authorizationParams: { screen_hint: 'signup' },
-              })
-            }
-          >
-            Sign up
-          </button>
-        </div>
-      </section>
+      <p className="status">Loading…</p>
     </PenniesShell>
   )
 }
@@ -201,7 +188,7 @@ function AuthedScreens() {
 }
 
 function App() {
-  const { isLoading, isAuthenticated, error } = useAuth0()
+  const { isLoading, isAuthenticated } = useAuth0()
 
   let screen
   if (isLoading) {
@@ -211,7 +198,7 @@ function App() {
       </PenniesShell>
     )
   } else if (!isAuthenticated) {
-    screen = <Welcome error={error} />
+    screen = <RedirectToLogin />
   } else {
     screen = <AuthedScreens />
   }

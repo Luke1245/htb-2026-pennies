@@ -278,6 +278,54 @@ test('a monthly budget can be set from left to spend', async () => {
   expect(within(tile()).getByRole('button', { name: 'Edit budget' })).toBeInTheDocument()
 })
 
+test('an empty budget removes the monthly budget', async () => {
+  const user = userEvent.setup()
+  useAuth0.mockReturnValue({
+    user: { given_name: 'Elodie' },
+    logout: vi.fn(),
+    getAccessTokenSilently: vi.fn().mockResolvedValue('test-token'),
+  })
+  let budget = '100.00'
+  const calls = []
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(async (url, options = {}) => {
+      const path = String(url)
+      calls.push({ path, method: options.method, body: options.body })
+      if (options.method === 'PUT' && path.includes('/monthly-budgets/')) {
+        budget = JSON.parse(options.body).amount
+        return json({ year: 2026, month: 11, amount: budget })
+      }
+      if (path.includes('/dashboard')) {
+        return json({
+          spent_this_month: '10.00',
+          left_to_spend: budget ? '90.00' : '40.00',
+          monthly_budget: budget,
+          categories: [],
+          subscriptions: '0.00',
+        })
+      }
+      if (path.includes('/transactions')) return json({ transactions: [] })
+      if (path.includes('/reading')) return json({ sharing_mode: 'raw', updated: false, reading: null })
+      return json({})
+    }),
+  )
+  renderAt('/')
+
+  const heading = await screen.findByRole('heading', { name: 'Left to spend' })
+  const tile = () => heading.closest('section')
+  await user.click(await within(tile()).findByRole('button', { name: 'Edit budget' }))
+  const budgetField = within(tile()).getByRole('textbox', { name: /budget/i })
+  await user.clear(budgetField)
+  await user.click(screen.getByRole('button', { name: 'Save budget' }))
+
+  const savedCall = calls.find((call) => call.method === 'PUT')
+  expect(JSON.parse(savedCall.body)).toEqual({ amount: null })
+  expect(await within(tile()).findByText('£40.00')).toBeInTheDocument()
+  expect(within(tile()).queryByText(/Budget £/)).not.toBeInTheDocument()
+  expect(within(tile()).getByRole('button', { name: 'Set budget' })).toBeInTheDocument()
+})
+
 test('an Account is required before the form opens', async () => {
   const user = userEvent.setup()
   renderRecords((call) => {
@@ -288,7 +336,9 @@ test('an Account is required before the form opens', async () => {
 
   await user.click(await screen.findByRole('button', { name: 'Add transaction' }))
 
-  expect(screen.getByText('An Account is needed.')).toBeInTheDocument()
+  expect(
+    screen.getByRole('alert'),
+  ).toHaveTextContent('You need an account before you can add a transaction.')
   expect(screen.queryByRole('button', { name: 'Add account' })).not.toBeInTheDocument()
   expect(screen.queryByLabelText('Vendor')).not.toBeInTheDocument()
 })

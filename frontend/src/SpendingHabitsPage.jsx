@@ -39,7 +39,7 @@ async function fetchPortrait(getAccessTokenSilently, request) {
   if (!readingResponse.ok) throw new Error(loadMessage)
   const sharing = sharingResponse.ok ? await sharingResponse.json() : { mode: 'raw' }
   const reading = await readingResponse.json()
-  if (reading.reading) {
+  if (reading.stored !== false && reading.reading) {
     return { mode: sharing.mode || 'raw', portrait: reading.reading, updated: true }
   }
   const updated = await api('/reading', token, { method: 'POST' })
@@ -268,6 +268,10 @@ export default function SpendingHabitsPage({ loadPortrait, onBack, onLogout, isA
             <section className="habit-section">
               <h3>Spending habits</h3>
               <HabitCards items={portrait.spending_habits || []} empty="No spending habits yet" />
+            </section>
+            <section className="habit-section">
+              <h3>Trade-offs</h3>
+              <HabitCards items={portrait.tradeoffs || []} empty="No trade-off yet" />
             </section>
             <section className="habit-section">
               <h3>If this keeps going</h3>

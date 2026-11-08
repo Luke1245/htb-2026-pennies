@@ -124,6 +124,29 @@ def test_spending_rules_and_london_month():
     assert balances["Bank"] == "15.00"
 
 
+def test_an_empty_budget_removes_it():
+    from tests.test_reading import FakeReader
+
+    client, _holder = make_client(reader=FakeReader())
+    account(client, "Cash", "40.00")
+    created = client.put("/monthly-budgets/2026/11", json={"amount": "10.00"})
+    assert created.status_code == 200, created.text
+    assert client.get("/dashboard").json()["left_to_spend"] == "10.00"
+
+    cleared = client.put("/monthly-budgets/2026/11", json={"amount": ""})
+    assert cleared.status_code == 200, cleared.text
+    assert cleared.json()["amount"] is None
+    without_budget = client.get("/dashboard").json()
+    assert without_budget["monthly_budget"] is None
+    assert without_budget["left_to_spend"] == "40.00"
+
+    still_clear = client.put("/monthly-budgets/2026/11", json={"amount": None})
+    assert still_clear.status_code == 200
+    assert still_clear.json()["amount"] is None
+    untouched = client.get("/monthly-budgets/2026/12")
+    assert untouched.json()["amount"] is None
+
+
 def test_summer_time_month_boundary():
     client, _holder = make_client(clock=lambda: datetime(2026, 7, 15, 12, tzinfo=timezone.utc))
     cash = account(client)

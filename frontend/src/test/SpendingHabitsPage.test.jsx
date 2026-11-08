@@ -16,6 +16,7 @@ function render(ui) {
 const portrait = {
   reading: 'Friday takeaway is becoming the month.',
   spending_habits: ['Coffee every weekday'],
+  tradeoffs: ['£12 on Greggs could have been another Steam game'],
   projected_habits: ['Eating out will pass the budget'],
   educations: [{ id: 'e1', subject: 'Budgeting basics', body: 'The Friday orders are the leak.' }],
   suggestions: [{ id: 's1', body: 'Keep Friday under £20.' }],
@@ -30,6 +31,8 @@ describe('Spending habits page', () => {
     expect(await screen.findByRole('img', { name: 'Pennie' })).toBeInTheDocument()
     expect(screen.getByText('Friday takeaway is becoming the month.')).toBeInTheDocument()
     expect(screen.getByText('Coffee every weekday')).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Trade-offs' })).toBeInTheDocument()
+    expect(screen.getByText('£12 on Greggs could have been another Steam game')).toBeInTheDocument()
     expect(screen.getByText('Eating out will pass the budget')).toBeInTheDocument()
     expect(screen.getByText(/Budgeting basics/)).toBeInTheDocument()
     expect(screen.getByText('The Friday orders are the leak.')).toBeInTheDocument()
@@ -164,5 +167,47 @@ describe('Spending habits page', () => {
 
     expect(screen.getByText('Newest reading.')).toBeInTheDocument()
     expect(screen.queryByText('Outdated reading.')).not.toBeInTheDocument()
+  })
+
+  it('writes a reading when the page only has the ledger placeholder', async () => {
+    const placeholder = {
+      reading: '£107.83 went to Eating out this month.',
+      spending_habits: ['£107.83 went to Eating out this month.'],
+      projected_habits: [],
+      educations: [{ id: 'e1', subject: 'Eating out', body: 'Eating out is where the money went.' }],
+      suggestions: [{ id: 's1', body: 'Decide what Eating out should cost before the month ends.' }],
+      recommendations: [],
+    }
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (url, options) => {
+        const path = String(url)
+        if (path.includes('/sharing-mode')) {
+          return { ok: true, json: async () => ({ mode: 'raw' }) }
+        }
+        if (path.includes('/reading') && options?.method === 'POST') {
+          return {
+            ok: true,
+            json: async () => ({ sharing_mode: 'raw', updated: true, stored: true, reading: portrait }),
+          }
+        }
+        if (path.includes('/reading')) {
+          return {
+            ok: true,
+            json: async () => ({ sharing_mode: 'raw', updated: false, stored: false, reading: placeholder }),
+          }
+        }
+        return { ok: false, json: async () => ({}) }
+      }),
+    )
+
+    render(<SpendingHabitsPage onBack={() => {}} />)
+
+    expect(await screen.findByText('Friday takeaway is becoming the month.')).toBeInTheDocument()
+    expect(screen.queryByText('£107.83 went to Eating out this month.')).not.toBeInTheDocument()
+    expect(fetch).toHaveBeenCalledWith(
+      expect.stringContaining('/reading'),
+      expect.objectContaining({ method: 'POST' }),
+    )
   })
 })

@@ -79,6 +79,49 @@
   margin-top: 24px;
 }
 
+.penny-greeting {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  min-width: 0;
+}
+
+.penny-greeting .pennie-avatar {
+  width: 92px;
+  height: auto;
+  flex: none;
+}
+
+.penny-greeting .pennie-bubble {
+  position: relative;
+  flex: none;
+  width: fit-content;
+  max-width: 100%;
+  margin-bottom: 18px;
+  padding: 14px 16px;
+  border: 1px solid #acd990;
+  border-radius: 18px;
+  background: #f4faef;
+}
+
+.penny-greeting .greeting {
+  width: max-content;
+  max-width: 100%;
+}
+
+.penny-greeting .pennie-bubble::before {
+  content: '';
+  position: absolute;
+  left: -8px;
+  bottom: 22px;
+  width: 14px;
+  height: 14px;
+  border-left: 1px solid #acd990;
+  border-bottom: 1px solid #acd990;
+  background: #f4faef;
+  transform: rotate(45deg);
+}
+
 .tile {
   border: 1px solid #acd990;
   border-radius: 8px;
@@ -242,6 +285,16 @@
 
 .tile-heading h2 {
   margin: 0;
+}
+
+.tile-alert {
+  margin: 0 0 12px;
+  padding: 12px 14px;
+  border: 2px solid #8f2d2d;
+  border-radius: 8px;
+  background: #fff6f6;
+  color: #6b1d1d;
+  font-weight: 600;
 }
 
 .tile-actions {
@@ -660,8 +713,22 @@ select option:checked {
 @media (max-width: 720px) {
   .tiles,
   .bars li,
-  .tile-heading {
+  .tile-heading,
+  .penny-greeting {
     grid-template-columns: 1fr;
+  }
+
+  .penny-greeting {
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .penny-greeting .pennie-bubble {
+    margin-bottom: 0;
+  }
+
+  .penny-greeting .pennie-bubble::before {
+    display: none;
   }
 
   .tile-heading {

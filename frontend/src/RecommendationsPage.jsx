@@ -17,12 +17,18 @@ async function api(path, token, options = {}) {
   return body
 }
 
-function rebuildResult(readingResponse) {
-  const updated = readingResponse.updated !== false
-  if (readingResponse.reading) {
-    return { recommendations: readingResponse.reading.recommendations || [], updated }
+function lessonResult(readingResponse, updated) {
+  if (!readingResponse.reading) return { educations: null, suggestions: null, recommendations: null, updated }
+  return {
+    educations: readingResponse.reading.educations || [],
+    suggestions: readingResponse.reading.suggestions || [],
+    recommendations: readingResponse.reading.recommendations || [],
+    updated,
   }
-  return { recommendations: null, updated }
+}
+
+function rebuildResult(readingResponse) {
+  return lessonResult(readingResponse, readingResponse.updated !== false)
 }
 
 async function fetchRecommendations(getAccessTokenSilently, request) {
@@ -33,8 +39,8 @@ async function fetchRecommendations(getAccessTokenSilently, request) {
     return rebuildResult(rebuilt)
   }
   const reading = await api('/reading', token)
-  if (reading.reading) {
-    return { recommendations: reading.reading.recommendations || [], updated: true }
+  if (reading.stored !== false && reading.reading) {
+    return lessonResult(reading, true)
   }
   const built = await api('/reading', token, { method: 'POST' })
   return rebuildResult(built)
@@ -53,6 +59,8 @@ export default function RecommendationsPage({ loadRecommendations, onBack, onOpe
         : fetchRecommendations(tokenProvider.current, request),
     [loadRecommendations],
   )
+  const [educations, setEducations] = useState(null)
+  const [suggestions, setSuggestions] = useState([])
   const [recommendations, setRecommendations] = useState(null)
   const [hasPortrait, setHasPortrait] = useState(false)
   const [status, setStatus] = useState('loading')
@@ -61,11 +69,15 @@ export default function RecommendationsPage({ loadRecommendations, onBack, onOpe
   const latestRequest = useRef(0)
 
   const applyResult = useCallback((result) => {
-    if (result.recommendations) {
-      setRecommendations(result.recommendations)
+    if (result.educations || result.recommendations) {
+      setEducations(result.educations || [])
+      setSuggestions(result.suggestions || [])
+      setRecommendations(result.recommendations || [])
       setHasPortrait(true)
       setError(result.updated === false)
     } else if (result.updated) {
+      setEducations(null)
+      setSuggestions([])
       setRecommendations(null)
       setHasPortrait(false)
       setError(false)
@@ -143,8 +155,8 @@ export default function RecommendationsPage({ loadRecommendations, onBack, onOpe
         </button>
         <div className="habits-heading">
           <p className="eyebrow">Learning picked for your spending</p>
-          <h2>Recommendations</h2>
-          <p>Guides and trusted resources chosen from your Financial portrait, most relevant first.</p>
+          <h2>For you</h2>
+          <p>Lessons from your own spending, then anything worth reading next.</p>
         </div>
         {status === 'loading' && <p role="status">Finding your recommendations…</p>}
         {error && (
@@ -165,16 +177,33 @@ export default function RecommendationsPage({ loadRecommendations, onBack, onOpe
           <section className="empty-state">
             <h3>No recommendations yet</h3>
             <p>
-              Add a Transaction from the dashboard when you’re ready. Pennies will recommend Guides and
-              resources once there is spending to read.
+              Add a Transaction from the dashboard when you’re ready. Pennies will teach from your spending
+              once there is something to read.
             </p>
           </section>
         )}
-        {status === 'ready' && hasPortrait && recommendations.length === 0 && !error && (
+        {status === 'ready' &&
+          hasPortrait &&
+          educations.length === 0 &&
+          recommendations.length === 0 &&
+          !error && (
           <section className="empty-state">
             <h3>No recommendations yet</h3>
             <p>Nothing stands out yet. New recommendations appear as your spending story grows.</p>
           </section>
+        )}
+        {hasPortrait && educations.length > 0 && (
+          <ol className="habit-list recommendation-list">
+            {educations.map((education) => (
+              <li key={education.id}>
+                <EducationLesson
+                  education={education}
+                  suggestion={suggestions.find((item) => item.education_id === education.id)}
+                  onOpenGuide={onOpenGuide}
+                />
+              </li>
+            ))}
+          </ol>
         )}
         {hasPortrait && recommendations.length > 0 && (
           <ol className="habit-list recommendation-list">
@@ -191,6 +220,23 @@ export default function RecommendationsPage({ loadRecommendations, onBack, onOpe
         )}
       </main>
     </div>
+  )
+}
+
+function EducationLesson({ education, suggestion, onOpenGuide }) {
+  const guide = guides.find((candidate) => candidate.id === education.guide_id)
+  return (
+    <article className="habit-card">
+      <span className="recommendation-kind">Lesson</span>
+      <h3>{education.subject}</h3>
+      <p>{education.body}</p>
+      {suggestion && <p>{suggestion.body}</p>}
+      {guide && (
+        <button type="button" className="read-guide" onClick={() => onOpenGuide(guide)}>
+          Read guide →
+        </button>
+      )}
+    </article>
   )
 }
 

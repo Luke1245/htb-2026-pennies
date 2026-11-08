@@ -13,6 +13,7 @@ def test_gemini_reader_parses_recommendations(monkeypatch):
         assert "moneyhelper-budget-planner" in prompt
         schema = json["generationConfig"]["responseSchema"]
         assert "recommendations" in schema["properties"]
+        assert "tradeoffs" in schema["required"]
         assert "recommendations" in schema["required"]
         text = jsonlib.dumps(
             {

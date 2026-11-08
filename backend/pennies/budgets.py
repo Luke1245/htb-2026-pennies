@@ -18,6 +18,14 @@ def get_budget(db: Session, user_sub: str, month: YearMonth) -> MonthlyBudget | 
     )
 
 
+def clear_budget(db: Session, user_sub: str, month: YearMonth) -> None:
+    budget = get_budget(db, user_sub, month)
+    if budget is None:
+        return
+    db.delete(budget)
+    db.flush()
+
+
 def set_budget(db: Session, user_sub: str, month: YearMonth, amount: Decimal) -> MonthlyBudget:
     if amount < 0:
         raise DomainError("Monthly budget must be zero or greater")

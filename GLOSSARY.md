@@ -41,7 +41,7 @@ The process of comparing an Account's calculated balance with its real balance a
 When a Monthly budget exists, that budget minus Spent this month; a negative value represents overspending. Without a Monthly budget, it is the sum of Account balances, including each opening balance.
 
 **Monthly budget**:
-An optional spending limit assigned to one Calendar month; later edits do not alter other months, and a new month may copy the previous month's value.
+An optional spending limit assigned to one Calendar month. An empty submission removes it; later edits do not alter other months, and a new month may copy the previous month's value.
 
 **Category**:
 A label for ordinary spending. Pennies starts each user with Groceries, Transport, Eating out, Entertainment, Income, and Other, and the user can rename or add Categories without changing Transactions already recorded. Gemini assigns one to an ordinary Transaction (Other when it cannot choose). A Transfer is not categorised, an Adjustment uses the reserved Adjustment Category, and a Subscription has no Category.
@@ -53,8 +53,12 @@ A pattern already visible in a user's historical spending, whether good or bad.
 A bad Spending habit Gemini expects if the user's current behaviour continues.
 _Avoid_: Forecast, prediction
 
+**Trade-off**:
+A comparison between small repeated treat purchases and one hobby or worthwhile purchase the user already makes, naming how much of the treat spending could have gone to that purchase instead.
+_Avoid_: Swap, alternative
+
 **Financial portrait**:
-The account owner's single current short reading, under the active sharing mode, of their ordinary Transactions, logged Subscriptions, current Monthly budget, Left to spend, and the Account balances that mode allows. It teaches what that spending means in a few plain sentences and names a few Spending habits and Projected habits; it is built once there is an ordinary Transaction or logged Subscription to read, including when Spending habits is opened and that reading is missing, and a new ordinary Transaction, Category change, Subscription change, or sharing-mode change replaces it.
+The account owner's single current short reading, under the active sharing mode, of their ordinary Transactions, logged Subscriptions, current Monthly budget, Left to spend, and the Account balances that mode allows. It teaches what that spending means in a few plain sentences and names a few Spending habits, Projected habits, and Trade-offs; it is built once there is an ordinary Transaction or logged Subscription to read, including when Spending habits is opened and that reading is missing, and a new ordinary Transaction, Category change, Subscription change, or sharing-mode change replaces it.
 _Avoid_: Profile, persona
 
 **Guide**:
@@ -66,7 +70,7 @@ A vetted external financial-literacy item that Pennies links to but does not hos
 _Avoid_: External link, content
 
 **Education**:
-A short explanation written from the user's Financial portrait. It teaches the Guide it applies, or the Category, Spending habit, or Projected habit it explains when no Guide covers that subject.
+A short explanation written from the user's Financial portrait, using their own categories, habits, vendors, and amounts rather than a general article. It teaches the Guide it applies, or the Category, Spending habit, or Projected habit it explains when no Guide covers that subject.
 
 **Suggestion**:
 A short action for the current month, written from the user's Financial portrait and following from a named Education.
