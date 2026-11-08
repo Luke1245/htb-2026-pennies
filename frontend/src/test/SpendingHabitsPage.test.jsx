@@ -3,234 +3,132 @@ import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 import SpendingHabitsPage from '../SpendingHabitsPage.jsx'
 
-const habits = [
-  {
-    id: 'weekend-eating-out',
-    patternKey: 'weekend-eating-out',
-    title: 'Weekend treats',
-    explanation: 'You spend more on eating out at weekends.',
-    evidence: 'Last month, weekend spending averaged £24 per day, compared with £9 on weekdays.',
-    period: 'Last month',
-  },
-]
+vi.mock('@auth0/auth0-react', () => ({
+  useAuth0: () => ({ getAccessTokenSilently: vi.fn() }),
+}))
+
+const portrait = {
+  reading: 'Friday takeaway is becoming the month.',
+  spending_habits: ['Coffee every weekday'],
+  projected_habits: ['Eating out will pass the budget'],
+  educations: [{ id: 'e1', subject: 'Budgeting basics', body: 'The Friday orders are the leak.' }],
+  suggestions: [{ id: 's1', body: 'Keep Friday under £20.' }],
+}
 
 describe('Spending habits page', () => {
-  it('shows generated habits with their explanation, evidence, and time period', async () => {
-    const generateHabits = vi.fn().mockResolvedValue({ habits })
-
-    render(<SpendingHabitsPage generateHabits={generateHabits} onBack={() => {}} />)
+  it('shows the financial portrait, habits, education, and suggestions', async () => {
+    const loadPortrait = vi.fn().mockResolvedValue({ mode: 'raw', portrait, updated: true })
+    render(<SpendingHabitsPage loadPortrait={loadPortrait} onBack={() => {}} />)
 
     expect(screen.getByRole('status')).toHaveTextContent('Finding your spending habits')
-    expect(await screen.findByRole('heading', { name: 'Weekend treats' })).toBeInTheDocument()
-    expect(screen.getByText('You spend more on eating out at weekends.')).toBeInTheDocument()
-    expect(screen.getByText(/weekend spending averaged £24/)).toBeInTheDocument()
-    expect(screen.getByText('Last month')).toBeInTheDocument()
-    expect(screen.getByText(/^Updated at /)).toBeInTheDocument()
+    expect(await screen.findByText('Friday takeaway is becoming the month.')).toBeInTheDocument()
+    expect(screen.getByText('Coffee every weekday')).toBeInTheDocument()
+    expect(screen.getByText('Eating out will pass the budget')).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Budgeting basics' })).toBeInTheDocument()
+    expect(screen.getByText('The Friday orders are the leak.')).toBeInTheDocument()
+    expect(screen.getByText('Keep Friday under £20.')).toBeInTheDocument()
+    expect(loadPortrait).toHaveBeenCalledWith({ action: 'load' })
   })
 
-  it('labels tentative patterns as emerging habits', async () => {
-    const generateHabits = vi.fn().mockResolvedValue({
-      habits: [{ ...habits[0], emerging: true }],
-    })
-
-    render(<SpendingHabitsPage generateHabits={generateHabits} onBack={() => {}} />)
-
-    expect(await screen.findByText('Emerging habit')).toBeInTheDocument()
-    expect(screen.getByText('Something to keep an eye on as you add more Transactions.')).toBeInTheDocument()
-  })
-
-  it('lets a user lock and unlock a habit without moving it', async () => {
+  it('warns before changing sharing mode and asks for a new reading', async () => {
     const user = userEvent.setup()
-    const generateHabits = vi.fn().mockResolvedValue({ habits })
-    render(<SpendingHabitsPage generateHabits={generateHabits} onBack={() => {}} />)
+    const loadPortrait = vi.fn()
+      .mockResolvedValueOnce({ mode: 'raw', portrait, updated: true })
+      .mockResolvedValueOnce({
+        mode: 'sanitised',
+        portrait: { ...portrait, reading: 'A less specific picture.' },
+        updated: true,
+      })
+    render(<SpendingHabitsPage loadPortrait={loadPortrait} onBack={() => {}} />)
 
-    await screen.findByRole('heading', { name: 'Weekend treats' })
-    await user.click(screen.getByRole('button', { name: 'Lock Weekend treats' }))
-
-    expect(screen.getByText('Locked')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Unlock Weekend treats' })).toBeInTheDocument()
-
-    await user.click(screen.getByRole('button', { name: 'Unlock Weekend treats' }))
-    expect(screen.queryByText('Locked')).not.toBeInTheDocument()
-  })
-
-  it('dismisses a habit and its similar patterns temporarily, with an undo option', async () => {
-    const user = userEvent.setup()
-    const generateHabits = vi.fn().mockResolvedValue({
-      habits: [habits[0], { ...habits[0], id: 'similar-weekend', title: 'Similar weekend spending' }],
-    })
-    render(<SpendingHabitsPage generateHabits={generateHabits} onBack={() => {}} />)
-
-    await screen.findByRole('heading', { name: 'Weekend treats' })
-    await user.click(screen.getByRole('button', { name: 'Dismiss Weekend treats' }))
-    await user.click(screen.getByRole('button', { name: 'Hide for a week' }))
-
-    expect(screen.queryByRole('heading', { name: 'Weekend treats' })).not.toBeInTheDocument()
-    expect(screen.queryByRole('heading', { name: 'Similar weekend spending' })).not.toBeInTheDocument()
-    expect(screen.getByText(/Similar habits will be hidden for a week/)).toBeInTheDocument()
-
-    await user.click(screen.getByRole('button', { name: 'Undo' }))
-    expect(screen.getByRole('heading', { name: 'Weekend treats' })).toBeInTheDocument()
-    expect(screen.getByRole('heading', { name: 'Similar weekend spending' })).toBeInTheDocument()
-  })
-
-  it('warns before changing sharing mode, removes locked habits, and keeps dismissals active', async () => {
-    const user = userEvent.setup()
-    const generateHabits = vi.fn()
-      .mockResolvedValueOnce({ habits })
-      .mockResolvedValueOnce({ habits: [{ ...habits[0], title: 'A newly worded weekend pattern' }] })
-    render(<SpendingHabitsPage generateHabits={generateHabits} onBack={() => {}} />)
-
-    await screen.findByRole('heading', { name: 'Weekend treats' })
-    await user.click(screen.getByRole('button', { name: 'Lock Weekend treats' }))
-    await user.click(screen.getByRole('button', { name: 'Dismiss Weekend treats' }))
-    await user.click(screen.getByRole('button', { name: 'Don’t show again' }))
+    await screen.findByText('Friday takeaway is becoming the month.')
     await user.selectOptions(screen.getByLabelText('AI sharing mode'), 'sanitised')
 
-    expect(screen.getByRole('dialog')).toHaveTextContent('all current Spending habits, including Locked habits, will be removed')
+    expect(screen.getByRole('dialog')).toHaveTextContent('the current Financial portrait will be removed')
     await user.click(screen.getByRole('button', { name: 'Change mode' }))
 
-    await screen.findByText('Sanitised sharing protects vendor names, notes, exact dates, and account names, so habits may be less specific.')
-    expect(screen.queryByRole('heading', { name: 'A newly worded weekend pattern' })).not.toBeInTheDocument()
-    expect(generateHabits).toHaveBeenLastCalledWith({ sharingMode: 'sanitised' })
+    expect(await screen.findByText('A less specific picture.')).toBeInTheDocument()
+    expect(screen.getByText(/Sanitised sharing protects vendor names/)).toBeInTheDocument()
+    expect(loadPortrait).toHaveBeenLastCalledWith({ action: 'share', mode: 'sanitised' })
   })
 
-  it('automatically refreshes unlocked habits after Transaction changes while preserving Locked habits', async () => {
-    const generateHabits = vi.fn()
-      .mockResolvedValueOnce({ habits: [habits[0], { ...habits[0], id: 'food-shop', patternKey: 'food-shop', title: 'A steady food shop' }] })
-      .mockResolvedValueOnce({ habits: [{ ...habits[0], title: 'Changed wording' }, { ...habits[0], id: 'food-shop', patternKey: 'food-shop', title: 'Food shops are changing' }] })
-    render(<SpendingHabitsPage generateHabits={generateHabits} onBack={() => {}} />)
-
-    await screen.findByRole('heading', { name: 'Weekend treats' })
-    await userEvent.click(screen.getByRole('button', { name: 'Lock A steady food shop' }))
-    fireEvent(window, new Event('pennies:transactions-changed'))
-
-    expect(await screen.findByRole('heading', { name: 'Changed wording' })).toBeInTheDocument()
-    expect(screen.getByRole('heading', { name: 'A steady food shop' })).toBeInTheDocument()
-    expect(screen.queryByRole('heading', { name: 'Food shops are changing' })).not.toBeInTheDocument()
-    const titles = screen.getAllByRole('heading', { level: 3 }).map((heading) => heading.textContent)
-    expect(titles).toEqual(['Changed wording', 'A steady food shop'])
-  })
-
-  it('keeps existing habits and offers a retry when an ordinary update fails', async () => {
-    const generateHabits = vi.fn()
-      .mockResolvedValueOnce({ habits })
+  it('keeps the current reading and offers a retry when an update fails', async () => {
+    const loadPortrait = vi.fn()
+      .mockResolvedValueOnce({ mode: 'raw', portrait, updated: true })
       .mockRejectedValueOnce(new Error('AI unavailable'))
-      .mockResolvedValueOnce({ habits })
-    render(<SpendingHabitsPage generateHabits={generateHabits} onBack={() => {}} />)
+      .mockResolvedValueOnce({ mode: 'raw', portrait, updated: true })
+    render(<SpendingHabitsPage loadPortrait={loadPortrait} onBack={() => {}} />)
 
-    await screen.findByRole('heading', { name: 'Weekend treats' })
+    await screen.findByText('Friday takeaway is becoming the month.')
     fireEvent(window, new Event('pennies:transactions-changed'))
 
-    expect(await screen.findByRole('alert')).toHaveTextContent('We couldn’t update your habits')
-    expect(screen.getByRole('heading', { name: 'Weekend treats' })).toBeInTheDocument()
+    expect(await screen.findByRole('alert')).toHaveTextContent('Your existing reading is still here')
+    expect(screen.getByText('Friday takeaway is becoming the month.')).toBeInTheDocument()
     await userEvent.click(screen.getByRole('button', { name: 'Try again' }))
-    await screen.findByRole('heading', { name: 'Weekend treats' })
-    expect(generateHabits).toHaveBeenCalledTimes(3)
+    await screen.findByText('Coffee every weekday')
+    expect(loadPortrait).toHaveBeenCalledTimes(3)
+    expect(loadPortrait).toHaveBeenLastCalledWith({ action: 'refresh' })
   })
 
-  it('explains when there is no spending history instead of inventing habits', async () => {
-    const generateHabits = vi.fn().mockResolvedValue({ habits: [], reason: 'no-history' })
-    render(<SpendingHabitsPage generateHabits={generateHabits} onBack={() => {}} />)
+  it('explains when there is no spending history', async () => {
+    const loadPortrait = vi.fn().mockResolvedValue({ mode: 'raw', portrait: null, updated: true })
+    render(<SpendingHabitsPage loadPortrait={loadPortrait} onBack={() => {}} />)
 
     expect(await screen.findByRole('heading', { name: 'No spending history yet' })).toBeInTheDocument()
-    expect(screen.getByText('Add a Transaction from the dashboard when you’re ready. Pennies will use your real spending to find habits.')).toBeInTheDocument()
+    expect(screen.getByText(/Add a Transaction from the dashboard/)).toBeInTheDocument()
   })
 
-  it('keeps the three-habit limit when Undo follows an automatic backfill', async () => {
-    const user = userEvent.setup()
-    const second = { ...habits[0], id: 'second', patternKey: 'second', title: 'Second habit' }
-    const third = { ...habits[0], id: 'third', patternKey: 'third', title: 'Third habit' }
-    const fourth = { ...habits[0], id: 'fourth', patternKey: 'fourth', title: 'Fourth habit' }
-    const generateHabits = vi.fn()
-      .mockResolvedValueOnce({ habits: [habits[0], second, third] })
-      .mockResolvedValueOnce({ habits: [habits[0], second, third, fourth] })
-    render(<SpendingHabitsPage generateHabits={generateHabits} onBack={() => {}} />)
+  it('asks for a new reading when transactions change', async () => {
+    const loadPortrait = vi.fn()
+      .mockResolvedValueOnce({ mode: 'raw', portrait, updated: true })
+      .mockResolvedValueOnce({
+        mode: 'raw',
+        portrait: { ...portrait, reading: 'The new shop changed the picture.' },
+        updated: true,
+      })
+    render(<SpendingHabitsPage loadPortrait={loadPortrait} onBack={() => {}} />)
 
-    await screen.findByRole('heading', { name: 'Weekend treats' })
-    await user.click(screen.getByRole('button', { name: 'Dismiss Weekend treats' }))
-    await user.click(screen.getByRole('button', { name: 'Hide for a week' }))
+    await screen.findByText('Friday takeaway is becoming the month.')
     fireEvent(window, new Event('pennies:transactions-changed'))
-    await screen.findByRole('heading', { name: 'Fourth habit' })
-    await user.click(screen.getByRole('button', { name: 'Undo' }))
 
-    expect(screen.getAllByRole('heading', { level: 3 })).toHaveLength(3)
-    expect(screen.getByRole('heading', { name: 'Weekend treats' })).toBeInTheDocument()
-  })
-
-  it('ignores a Raw response that finishes after switching to Sanitised sharing', async () => {
-    let resolveRaw
-    const rawRequest = new Promise((resolve) => { resolveRaw = resolve })
-    const sanitisedHabit = { ...habits[0], id: 'sanitised', title: 'Sanitised habit' }
-    const generateHabits = vi.fn()
-      .mockReturnValueOnce(rawRequest)
-      .mockResolvedValueOnce({ habits: [sanitisedHabit] })
-    const user = userEvent.setup()
-    render(<SpendingHabitsPage generateHabits={generateHabits} onBack={() => {}} />)
-
-    await user.selectOptions(screen.getByLabelText('AI sharing mode'), 'sanitised')
-    await user.click(screen.getByRole('button', { name: 'Change mode' }))
-    await screen.findByRole('heading', { name: 'Sanitised habit' })
-    await act(async () => { resolveRaw({ habits }) })
-
-    expect(screen.queryByRole('heading', { name: 'Weekend treats' })).not.toBeInTheDocument()
-    expect(screen.getByRole('heading', { name: 'Sanitised habit' })).toBeInTheDocument()
-  })
-
-  it('does not restore a habit dismissed while regeneration is pending', async () => {
-    let resolveRefresh
-    const refreshRequest = new Promise((resolve) => { resolveRefresh = resolve })
-    const generateHabits = vi.fn()
-      .mockResolvedValueOnce({ habits })
-      .mockReturnValueOnce(refreshRequest)
-    const user = userEvent.setup()
-    render(<SpendingHabitsPage generateHabits={generateHabits} onBack={() => {}} />)
-
-    await screen.findByRole('heading', { name: 'Weekend treats' })
-    fireEvent(window, new Event('pennies:transactions-changed'))
-    await user.click(screen.getByRole('button', { name: 'Dismiss Weekend treats' }))
-    await user.click(screen.getByRole('button', { name: 'Don’t show again' }))
-    await act(async () => { resolveRefresh({ habits }) })
-
-    expect(screen.queryByRole('heading', { name: 'Weekend treats' })).not.toBeInTheDocument()
+    expect(await screen.findByText('The new shop changed the picture.')).toBeInTheDocument()
+    expect(loadPortrait).toHaveBeenLastCalledWith({ action: 'refresh' })
   })
 
   it('ignores an older refresh that finishes after a newer refresh', async () => {
     let resolveOlder
     let resolveNewer
-    const olderRequest = new Promise((resolve) => { resolveOlder = resolve })
-    const newerRequest = new Promise((resolve) => { resolveNewer = resolve })
-    const generateHabits = vi.fn()
-      .mockResolvedValueOnce({ habits })
+    const olderRequest = new Promise((resolve) => {
+      resolveOlder = resolve
+    })
+    const newerRequest = new Promise((resolve) => {
+      resolveNewer = resolve
+    })
+    const loadPortrait = vi.fn()
+      .mockResolvedValueOnce({ mode: 'raw', portrait, updated: true })
       .mockReturnValueOnce(olderRequest)
       .mockReturnValueOnce(newerRequest)
-    render(<SpendingHabitsPage generateHabits={generateHabits} onBack={() => {}} />)
-    await screen.findByRole('heading', { name: 'Weekend treats' })
+    render(<SpendingHabitsPage loadPortrait={loadPortrait} onBack={() => {}} />)
+    await screen.findByText('Friday takeaway is becoming the month.')
 
     fireEvent(window, new Event('pennies:transactions-changed'))
     fireEvent(window, new Event('pennies:transactions-changed'))
     await act(async () => {
-      resolveNewer({ habits: [{ ...habits[0], title: 'Newest habit' }] })
+      resolveNewer({
+        mode: 'raw',
+        portrait: { ...portrait, reading: 'Newest reading.' },
+        updated: true,
+      })
     })
     await act(async () => {
-      resolveOlder({ habits: [{ ...habits[0], title: 'Outdated habit' }] })
+      resolveOlder({
+        mode: 'raw',
+        portrait: { ...portrait, reading: 'Outdated reading.' },
+        updated: true,
+      })
     })
 
-    expect(screen.getByRole('heading', { name: 'Newest habit' })).toBeInTheDocument()
-    expect(screen.queryByRole('heading', { name: 'Outdated habit' })).not.toBeInTheDocument()
+    expect(screen.getByText('Newest reading.')).toBeInTheDocument()
+    expect(screen.queryByText('Outdated reading.')).not.toBeInTheDocument()
   })
-
-  it('shows an all-hidden state instead of claiming there is insufficient history', async () => {
-    const generateHabits = vi.fn().mockResolvedValue({ habits })
-    const user = userEvent.setup()
-    render(<SpendingHabitsPage generateHabits={generateHabits} onBack={() => {}} />)
-
-    await screen.findByRole('heading', { name: 'Weekend treats' })
-    await user.click(screen.getByRole('button', { name: 'Dismiss Weekend treats' }))
-    await user.click(screen.getByRole('button', { name: 'Don’t show again' }))
-
-    expect(screen.getByRole('heading', { name: 'No habits to show right now' })).toBeInTheDocument()
-    expect(screen.queryByRole('heading', { name: 'Not enough spending history yet' })).not.toBeInTheDocument()
-  })
-
 })

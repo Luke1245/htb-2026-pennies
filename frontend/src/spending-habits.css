@@ -1,7 +1,7 @@
 .habits-page {
   min-height: 100svh;
   width: 100%;
-  background: #f7faf5;
+  background: #fff;
   color: #112114;
   font-family: system-ui, 'Segoe UI', Roboto, sans-serif;
 }
@@ -16,7 +16,7 @@
   border: 0;
   padding: 8px 0;
   background: transparent;
-  color: #356344;
+  color: #487853;
   font: inherit;
   font-size: 15px;
   font-weight: 600;
@@ -34,12 +34,12 @@
   gap: 10px;
   margin-top: -36px;
   font-size: 14px;
-  color: #356344;
+  color: #487853;
 }
 
 .sharing-control select {
-  border: 1px solid #9cc48c;
-  border-radius: 8px;
+  border: 1px solid #acd990;
+  border-radius: 6px;
   padding: 7px 30px 7px 10px;
   background: #fff;
   color: #112114;
@@ -49,9 +49,10 @@
 .privacy-note {
   margin: 20px 0 0;
   padding: 12px 14px;
+  border: 1px solid #acd990;
   border-radius: 8px;
-  background: #eaf4e5;
-  color: #356344;
+  background: #f4faef;
+  color: #112114;
   font-size: 14px;
 }
 
@@ -84,8 +85,27 @@
 
 .updated-at {
   margin: -12px 0 20px;
-  color: #5b705f;
+  color: #487853;
   font-size: 13px;
+}
+
+.portrait-reading {
+  margin: 0 0 8px;
+  white-space: pre-wrap;
+  color: #112114;
+  font-size: 17px;
+  line-height: 1.6;
+}
+
+.habit-section {
+  margin-top: 28px;
+}
+
+.habit-section > h3 {
+  margin: 0 0 12px;
+  color: #487853;
+  font-size: 15px;
+  font-weight: 600;
 }
 
 .habit-list {
@@ -96,10 +116,9 @@
 .habit-card {
   position: relative;
   padding: 24px;
-  border: 1px solid #d3e5cc;
-  border-radius: 16px;
+  border: 1px solid #acd990;
+  border-radius: 8px;
   background: #fff;
-  box-shadow: 0 4px 14px rgba(34, 68, 40, 0.05);
 }
 
 .habit-card-top,
@@ -119,30 +138,31 @@
 .locked-label {
   padding: 4px 9px;
   border-radius: 999px;
-  background: #eaf4e5;
-  color: #356344;
+  background: #f4faef;
+  color: #487853;
   font-size: 12px;
   font-weight: 700;
 }
 
 .habit-card h3 {
   margin: 10px 0 8px;
-  color: #112114;
+  color: #487853;
   font-size: 23px;
   line-height: 1.25;
 }
 
 .habit-card > p:not(.habit-period) {
-  color: #334b38;
+  color: #112114;
   line-height: 1.55;
 }
 
 .habit-evidence {
   margin-top: 16px;
   padding: 13px 15px;
-  border-left: 3px solid #8abb79;
+  border-left: 3px solid #487853;
   border-radius: 0 8px 8px 0;
-  background: #f5f9f2;
+  background: #f4faef;
+  color: #112114;
   font-size: 14px;
 }
 
@@ -151,14 +171,15 @@
   align-items: center;
   gap: 8px;
   margin-top: 14px;
-  color: #72541b;
+  color: #487853;
   font-size: 12px;
 }
 
 .emerging-note strong {
   padding: 4px 8px;
   border-radius: 999px;
-  background: #fff1c9;
+  background: #acd990;
+  color: #112114;
 }
 
 .emerging-note p {
@@ -175,11 +196,11 @@
 .error-message button,
 .dismiss-toast button,
 .sharing-dialog button {
-  border: 1px solid #9cc48c;
-  border-radius: 8px;
-  padding: 7px 12px;
+  border: 1px solid #487853;
+  border-radius: 6px;
+  padding: 6px 12px;
   background: #fff;
-  color: #294d32;
+  color: #112114;
   font: inherit;
   font-size: 14px;
   font-weight: 600;
@@ -189,12 +210,12 @@
 .habit-actions button:hover,
 .dismiss-menu button:hover,
 .sharing-dialog button:hover {
-  background: #edf6e9;
+  background: #f4faef;
 }
 
 .habit-actions .dismiss-button {
   border-color: transparent;
-  color: #5b705f;
+  color: #487853;
   font-weight: 500;
 }
 
@@ -206,7 +227,7 @@
   margin-top: 16px;
   padding: 14px;
   border-radius: 10px;
-  background: #f0f6ed;
+  background: #f4faef;
 }
 
 .dismiss-menu p {
@@ -219,25 +240,25 @@
 .error-message {
   margin: 20px 0;
   padding: 24px;
-  border: 1px dashed #9cc48c;
-  border-radius: 14px;
+  border: 1px solid #acd990;
+  border-radius: 8px;
   background: #fff;
   text-align: center;
 }
 
 .empty-state h3 {
   margin: 0 0 8px;
-  color: #112114;
+  color: #487853;
 }
 
 .empty-state p,
 .error-message p {
-  color: #487853;
+  color: #112114;
 }
 
 .error-message {
   border-style: solid;
-  border-color: #d9a79c;
+  border-color: #acd990;
 }
 
 .error-message button {
@@ -254,19 +275,18 @@
   gap: 16px;
   max-width: 460px;
   padding: 14px 16px;
-  border: 1px solid #79a56a;
-  border-radius: 12px;
-  background: #112114;
-  color: #fff;
-  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.2);
+  border: 1px solid #acd990;
+  border-radius: 8px;
+  background: #fff;
+  color: #112114;
   font-size: 14px;
 }
 
 .dismiss-toast button {
   flex-shrink: 0;
-  border-color: #acd990;
-  background: transparent;
-  color: #dff5d4;
+  border-color: #487853;
+  background: #acd990;
+  color: #112114;
 }
 
 .dialog-backdrop {
@@ -282,9 +302,9 @@
 .sharing-dialog {
   width: min(460px, 100%);
   padding: 26px;
-  border-radius: 16px;
+  border: 1px solid #acd990;
+  border-radius: 8px;
   background: #fff;
-  box-shadow: 0 18px 60px rgba(0, 0, 0, 0.25);
 }
 
 .sharing-dialog h2 {
@@ -305,15 +325,15 @@
 }
 
 .sharing-dialog .primary-button {
-  border-color: #487853;
-  background: #487853;
-  color: #fff;
+  border-color: #acd990;
+  background: #acd990;
+  color: #112114;
 }
 
 button:focus-visible,
 a:focus-visible,
 select:focus-visible {
-  outline: 3px solid #6b9f5c;
+  outline: 3px solid #487853;
   outline-offset: 3px;
 }
 

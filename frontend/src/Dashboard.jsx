@@ -119,10 +119,12 @@ export default function Dashboard({ onViewSpendingHabits }) {
     window.dispatchEvent(new Event('pennies:transactions-changed'))
   }
 
-  const largest = figures?.categories.reduce(
-    (highest, category) => Math.max(highest, Number(category.amount)),
-    0,
+  const subscriptionTotal = Number(figures?.subscriptions || 0)
+  const largest = Math.max(
+    subscriptionTotal,
+    ...(figures?.categories.map((category) => Number(category.amount)) || [0]),
   )
+  const noSpending = figures && figures.categories.length === 0 && subscriptionTotal === 0
 
   return (
     <div className="dashboard">
@@ -131,9 +133,7 @@ export default function Dashboard({ onViewSpendingHabits }) {
         <button
           type="button"
           className="logout"
-          onClick={() =>
-            logout({ logoutParams: { returnTo: window.location.origin } })
-          }
+          onClick={() => logout({ logoutParams: { returnTo: window.location.origin } })}
         >
           Log out
         </button>
@@ -160,7 +160,7 @@ export default function Dashboard({ onViewSpendingHabits }) {
                 </section>
                 <section className="tile">
                   <h2>Spending insights</h2>
-                  {figures.categories.length === 0 ? (
+                  {noSpending ? (
                     <p className="status">No spending this month</p>
                   ) : (
                     <ul className="bars">
@@ -177,6 +177,19 @@ export default function Dashboard({ onViewSpendingHabits }) {
                           <span>{pounds(category.amount)}</span>
                         </li>
                       ))}
+                      {subscriptionTotal > 0 && (
+                        <li>
+                          <span>Subscriptions</span>
+                          <span className="bar" aria-hidden="true">
+                            <span
+                              style={{
+                                width: `${largest ? (subscriptionTotal / largest) * 100 : 0}%`,
+                              }}
+                            />
+                          </span>
+                          <span>{pounds(figures.subscriptions)}</span>
+                        </li>
+                      )}
                     </ul>
                   )}
                   <a
@@ -184,7 +197,7 @@ export default function Dashboard({ onViewSpendingHabits }) {
                     className="habits-link"
                     onClick={(event) => {
                       event.preventDefault()
-                      onViewSpendingHabits()
+                      onViewSpendingHabits?.()
                     }}
                   >
                     View spending habits <span aria-hidden="true">→</span>
@@ -215,7 +228,10 @@ export default function Dashboard({ onViewSpendingHabits }) {
                         <li key={transaction.id}>
                           <span>
                             {transaction.vendor || transaction.category}
-                            <small>{whenLabel(transaction.occurred_at)}</small>
+                            <small>
+                              {transaction.vendor ? `${transaction.category} · ` : ''}
+                              {whenLabel(transaction.occurred_at)}
+                            </small>
                           </span>
                           <span>{signedPounds(transaction.amount)}</span>
                         </li>

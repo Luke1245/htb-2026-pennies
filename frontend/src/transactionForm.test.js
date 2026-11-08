@@ -41,7 +41,7 @@ test('a future UK date is refused and today is accepted', () => {
   )
 })
 
-test('the create body uses a signed amount, Other, and a London moment', () => {
+test('the create body uses a signed amount and a London moment', () => {
   expect(
     transactionBody({
       accountId: 'acc-1',
@@ -54,7 +54,6 @@ test('the create body uses a signed amount, Other, and a London moment', () => {
   ).toEqual({
     account_id: 'acc-1',
     amount: '-3.40',
-    category: 'Other',
     vendor: 'Pret',
     note: null,
     occurred_at: '2026-10-15T00:00:00',

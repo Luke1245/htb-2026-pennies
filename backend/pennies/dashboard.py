@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 
 from pennies.budgets import get_budget
 from pennies.calendar import YearMonth, month_bounds
-from pennies.models import Transaction
+from pennies.models import Subscription, Transaction
 
 
 def dashboard(db: Session, user_sub: str, now: datetime) -> dict:
@@ -27,6 +27,15 @@ def dashboard(db: Session, user_sub: str, now: datetime) -> dict:
         spent += outflow
         by_category[transaction.category] = by_category.get(transaction.category, Decimal("0.00")) + outflow
     month = YearMonth.containing(now)
+    subscriptions = db.scalars(
+        select(Subscription).where(
+            Subscription.user_sub == user_sub,
+            Subscription.year == month.year,
+            Subscription.month == month.month,
+        )
+    ).all()
+    subscription_total = sum((item.amount for item in subscriptions), Decimal("0.00"))
+    spent += subscription_total
     budget = get_budget(db, user_sub, month)
     left = budget.amount - spent if budget is not None else Decimal("0.00")
     return {
@@ -36,4 +45,5 @@ def dashboard(db: Session, user_sub: str, now: datetime) -> dict:
         "categories": [
             {"name": name, "amount": amount} for name, amount in sorted(by_category.items())
         ],
+        "subscriptions": subscription_total,
     }

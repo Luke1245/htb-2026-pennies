@@ -1,140 +1,166 @@
-import { useEffect, useRef, useState } from 'react'
-import { generateDemoHabits } from './demoSpendingHabits.js'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { useAuth0 } from '@auth0/auth0-react'
+import { apiUrl, authHeaders } from './api.js'
 import './spending-habits.css'
 
-function isDismissed(habit, dismissals) {
-  return dismissals.some((item) =>
-    item.patternKey === habit.patternKey && (item.until === null || item.until > Date.now()),
-  )
+const loadMessage = 'Pennies could not load your records'
+
+async function api(path, token, options = {}) {
+  const response = await fetch(`${apiUrl}${path}`, {
+    ...options,
+    headers: {
+      Authorization: `Bearer ${token}`,
+      ...(options.body ? { 'Content-Type': 'application/json' } : {}),
+    },
+  })
+  const body = await response.json().catch(() => ({}))
+  if (!response.ok) throw new Error(body.detail || loadMessage)
+  return body
 }
 
-export default function SpendingHabitsPage({ generateHabits = generateDemoHabits, onBack, onLogout, isActive = true }) {
-  const [habits, setHabits] = useState([])
+async function fetchPortrait(getAccessTokenSilently, request) {
+  const headers = await authHeaders(getAccessTokenSilently)
+  const token = headers.Authorization.replace('Bearer ', '')
+  if (request.action === 'share') {
+    await api('/sharing-mode', token, { method: 'PUT', body: JSON.stringify({ mode: request.mode }) })
+    const updated = await api('/reading', token, { method: 'POST' })
+    return { mode: updated.sharing_mode, portrait: updated.reading, updated: updated.updated }
+  }
+  if (request.action === 'refresh') {
+    const updated = await api('/reading', token, { method: 'POST' })
+    return { mode: updated.sharing_mode, portrait: updated.reading, updated: updated.updated }
+  }
+  const [sharingResponse, readingResponse] = await Promise.all([
+    fetch(`${apiUrl}/sharing-mode`, { headers }),
+    fetch(`${apiUrl}/reading`, { headers }),
+  ])
+  if (!sharingResponse.ok || !readingResponse.ok) throw new Error(loadMessage)
+  const sharing = await sharingResponse.json()
+  const reading = await readingResponse.json()
+  if (reading.reading) {
+    return { mode: sharing.mode || 'raw', portrait: reading.reading, updated: true }
+  }
+  const updated = await api('/reading', token, { method: 'POST' })
+  return {
+    mode: updated.sharing_mode || sharing.mode || 'raw',
+    portrait: updated.reading,
+    updated: updated.updated,
+  }
+}
+
+export default function SpendingHabitsPage({ loadPortrait, onBack, onLogout, isActive = true }) {
+  const { getAccessTokenSilently } = useAuth0()
+  const tokenProvider = useRef(getAccessTokenSilently)
+  useEffect(() => {
+    tokenProvider.current = getAccessTokenSilently
+  }, [getAccessTokenSilently])
+  const load = useCallback(
+    (request) => (loadPortrait ? loadPortrait(request) : fetchPortrait(tokenProvider.current, request)),
+    [loadPortrait],
+  )
+  const [portrait, setPortrait] = useState(null)
   const [status, setStatus] = useState('loading')
-  const [dismissMenu, setDismissMenu] = useState(null)
-  const [lastDismissal, setLastDismissal] = useState(null)
-  const dismissals = useRef([])
   const [sharingMode, setSharingMode] = useState('raw')
   const [pendingSharingMode, setPendingSharingMode] = useState(null)
   const [error, setError] = useState(false)
-  const [emptyReason, setEmptyReason] = useState(null)
-  const [lastUpdated, setLastUpdated] = useState(null)
   const wasActive = useRef(isActive)
   const latestRequest = useRef(0)
+  const portraitRef = useRef(null)
+
+  const applyResult = useCallback((result, keepExisting) => {
+    if (result.mode) setSharingMode(result.mode)
+    if (result.portrait) {
+      portraitRef.current = result.portrait
+      setPortrait(result.portrait)
+      setError(result.updated === false)
+    } else if (result.updated) {
+      portraitRef.current = null
+      setPortrait(null)
+      setError(false)
+    } else if (keepExisting && portraitRef.current) {
+      setError(true)
+    } else {
+      setError(true)
+    }
+    setStatus('ready')
+  }, [])
 
   useEffect(() => {
-    if (!lastDismissal) return
-    const timeout = setTimeout(() => setLastDismissal(null), 6000)
-    return () => clearTimeout(timeout)
-  }, [lastDismissal])
+    let active = true
+    const requestId = ++latestRequest.current
+    load({ action: 'load' })
+      .then((result) => {
+        if (!active || requestId !== latestRequest.current) return
+        applyResult(result, false)
+      })
+      .catch(() => {
+        if (!active || requestId !== latestRequest.current) return
+        setError(true)
+        setStatus('ready')
+      })
+    return () => {
+      active = false
+    }
+  }, [load, applyResult])
 
-  const dismissHabit = (duration) => {
-    const habit = habits.find((item) => item.id === dismissMenu)
-    const remainingHabits = habits.filter((item) => item.patternKey !== habit.patternKey)
-    setHabits(remainingHabits)
-    if (remainingHabits.length === 0) setEmptyReason('dismissed')
-    const until = duration === 'forever' ? null : Date.now() + (duration === 'week' ? 7 : 30) * 24 * 60 * 60 * 1000
-    setLastDismissal({ habits: habits.filter((item) => item.patternKey === habit.patternKey), duration })
-    dismissals.current = [...dismissals.current, { patternKey: habit.patternKey, until }]
-    setDismissMenu(null)
-  }
+  useEffect(() => {
+    if (isActive && !wasActive.current) {
+      const requestId = ++latestRequest.current
+      load({ action: 'load' })
+        .then((result) => {
+          if (requestId !== latestRequest.current) return
+          applyResult(result, true)
+        })
+        .catch(() => {
+          if (requestId === latestRequest.current) setError(true)
+        })
+    }
+    wasActive.current = isActive
+  }, [isActive, load, applyResult])
 
-  const undoDismissal = () => {
-    setHabits((current) => [...lastDismissal.habits, ...current].slice(0, 3))
-    setEmptyReason(null)
-    dismissals.current = dismissals.current.filter((item) => item.patternKey !== lastDismissal.habits[0].patternKey)
-    setLastDismissal(null)
-  }
+  useEffect(() => {
+    const refresh = async () => {
+      const requestId = ++latestRequest.current
+      setError(false)
+      try {
+        const result = await load({ action: 'refresh' })
+        if (requestId !== latestRequest.current) return
+        applyResult(result, true)
+      } catch {
+        if (requestId === latestRequest.current) setError(true)
+      }
+    }
+    window.addEventListener('pennies:transactions-changed', refresh)
+    return () => window.removeEventListener('pennies:transactions-changed', refresh)
+  }, [load, applyResult])
 
   const confirmSharingMode = async () => {
     const requestId = ++latestRequest.current
     const nextMode = pendingSharingMode
     setPendingSharingMode(null)
     setSharingMode(nextMode)
-    setHabits([])
+    setPortrait(null)
+    portraitRef.current = null
     setStatus('loading')
-    try {
-    const result = await generateHabits({ sharingMode: nextMode })
-    if (requestId !== latestRequest.current) return
     setError(false)
-    setEmptyReason(result.reason)
-    setLastUpdated(new Date())
-    setHabits(result.habits.filter((habit) =>
-      !isDismissed(habit, dismissals.current),
-    ).slice(0, 3))
+    try {
+      const result = await load({ action: 'share', mode: nextMode })
+      if (requestId !== latestRequest.current) return
+      applyResult(result, false)
     } catch {
       if (requestId !== latestRequest.current) return
       setError(true)
-    }
-    if (requestId === latestRequest.current) setStatus('ready')
-  }
-
-  const toggleLock = (id) => {
-    setHabits((current) =>
-      current.map((habit) =>
-        habit.id === id ? { ...habit, locked: !habit.locked } : habit,
-      ),
-    )
-  }
-
-  useEffect(() => {
-    if (isActive && !wasActive.current) {
-      window.dispatchEvent(new Event('pennies:transactions-changed'))
-    }
-    wasActive.current = isActive
-  }, [isActive])
-
-  useEffect(() => {
-    let active = true
-    const requestId = ++latestRequest.current
-    generateHabits({ sharingMode: 'raw' }).then((result) => {
-      if (!active || requestId !== latestRequest.current) return
-      setHabits(result.habits.slice(0, 3))
-      setEmptyReason(result.reason)
-      setLastUpdated(new Date())
       setStatus('ready')
-    }).catch(() => {
-      if (!active || requestId !== latestRequest.current) return
-      setError(true)
-      setStatus('ready')
-    })
-    return () => {
-      active = false
     }
-  }, [generateHabits])
-
-  useEffect(() => {
-    const refreshHabits = async () => {
-      const requestId = ++latestRequest.current
-      setError(false)
-      try {
-      const result = await generateHabits({ sharingMode })
-      if (requestId !== latestRequest.current) return
-      setEmptyReason(result.reason)
-      setLastUpdated(new Date())
-      setHabits((current) => {
-        const lockedPatterns = new Set(current.filter((habit) => habit.locked).map((habit) => habit.patternKey))
-        const available = result.habits.filter((habit) =>
-          !lockedPatterns.has(habit.patternKey)
-          && !isDismissed(habit, dismissals.current),
-        )
-        let nextIndex = 0
-        const merged = current.map((habit) => habit.locked ? habit : available[nextIndex++]).filter(Boolean)
-        return [...merged, ...available.slice(nextIndex)].slice(0, 3)
-      })
-      } catch {
-        if (requestId === latestRequest.current) setError(true)
-      }
-    }
-    window.addEventListener('pennies:transactions-changed', refreshHabits)
-    return () => window.removeEventListener('pennies:transactions-changed', refreshHabits)
-  }, [generateHabits, sharingMode])
+  }
 
   return (
     <div className="habits-page">
       <header className="banner">
         <h1>Pennies</h1>
-        <button type="button" className="logout" onClick={onLogout}>Log out</button>
+        <button type="button" className="logout" onClick={onLogout}>
+          Log out
+        </button>
       </header>
       <main className="habits-main">
         <button type="button" className="back-link" onClick={onBack}>
@@ -142,104 +168,120 @@ export default function SpendingHabitsPage({ generateHabits = generateDemoHabits
         </button>
         <div className="sharing-control">
           <label htmlFor="sharing-mode">AI sharing mode</label>
-          <select id="sharing-mode" value={sharingMode} onChange={(event) => setPendingSharingMode(event.target.value)}>
+          <select
+            id="sharing-mode"
+            value={sharingMode}
+            onChange={(event) => setPendingSharingMode(event.target.value)}
+          >
             <option value="raw">Raw sharing</option>
             <option value="sanitised">Sanitised sharing</option>
           </select>
         </div>
         {sharingMode === 'sanitised' && (
-          <p className="privacy-note">Sanitised sharing protects vendor names, notes, exact dates, and account names, so habits may be less specific.</p>
+          <p className="privacy-note">
+            Sanitised sharing protects vendor names, notes, exact dates, and account names, so habits may be less specific.
+          </p>
         )}
         <div className="habits-heading">
           <p className="eyebrow">Your money, made clearer</p>
           <h2>Spending habits</h2>
-          <p>Little patterns in your spending, explained in plain English.</p>
+          <p>A detailed reading of your spending, and the patterns it suggests.</p>
         </div>
         {status === 'loading' && <p role="status">Finding your spending habits…</p>}
-        {status === 'ready' && !error && lastUpdated && (
-          <p className="updated-at">
-            Updated at {lastUpdated.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}
-          </p>
-        )}
         {error && (
           <div className="error-message" role="alert">
-            <p>We couldn’t update your habits. {habits.length > 0 ? 'Your existing habits are still here.' : 'Please try again.'}</p>
-            <button type="button" onClick={() => window.dispatchEvent(new Event('pennies:transactions-changed'))}>Try again</button>
+            <p>
+              We couldn’t update your habits.
+              {portrait ? ' Your existing reading is still here.' : ' Please try again.'}
+            </p>
+            <button type="button" onClick={() => window.dispatchEvent(new Event('pennies:transactions-changed'))}>
+              Try again
+            </button>
           </div>
         )}
-        {status === 'ready' && habits.length === 0 && !error && (
+        {status === 'ready' && !portrait && !error && (
           <section className="empty-state">
-            <h3>{emptyReason === 'no-history'
-              ? 'No spending history yet'
-              : emptyReason === 'insufficient-history'
-              ? 'Not enough spending history yet'
-              : 'No habits to show right now'}</h3>
-            <p>{emptyReason === 'no-history'
-              ? 'Add a Transaction from the dashboard when you’re ready. Pennies will use your real spending to find habits.'
-              : emptyReason === 'insufficient-history'
-              ? 'Keep adding Transactions. We’ll show a habit when there’s enough meaningful evidence.'
-              : 'You’ve hidden all your current habits. New patterns can appear here as your spending changes.'}</p>
+            <h3>No spending history yet</h3>
+            <p>
+              Add a Transaction from the dashboard when you’re ready. Pennies will use your real spending to find habits.
+            </p>
           </section>
         )}
-        <div className="habit-list">
-          {habits.map((habit) => (
-            <article className="habit-card" key={habit.id}>
-              <div className="habit-card-top">
-                <p className="habit-period">{habit.period}</p>
-                {habit.locked && <span className="locked-label"><span aria-hidden="true">🔒 </span>Locked</span>}
-              </div>
-              {habit.emerging && (
-                <div className="emerging-note">
-                  <strong>Emerging habit</strong>
-                  <p>Something to keep an eye on as you add more Transactions.</p>
+        {portrait && (
+          <>
+            <p className="portrait-reading">{portrait.reading}</p>
+            <section className="habit-section">
+              <h3>Spending habits</h3>
+              <HabitCards items={portrait.spending_habits} empty="No spending habits yet" />
+            </section>
+            <section className="habit-section">
+              <h3>Projected habits</h3>
+              <HabitCards items={portrait.projected_habits} empty="No projected habits yet" />
+            </section>
+            <section className="habit-section">
+              <h3>Education</h3>
+              {portrait.educations.length === 0 ? (
+                <p className="status">No education yet</p>
+              ) : (
+                <div className="habit-list">
+                  {portrait.educations.map((education) => (
+                    <article className="habit-card" key={education.id}>
+                      <h3>{education.subject}</h3>
+                      <p>{education.body}</p>
+                    </article>
+                  ))}
                 </div>
               )}
-              <h3>{habit.title}</h3>
-              <p>{habit.explanation}</p>
-              <p className="habit-evidence">{habit.evidence}</p>
-              <div className="habit-actions">
-                <button type="button" className="dismiss-button" aria-label={`Dismiss ${habit.title}`} onClick={() => setDismissMenu(habit.id)}>
-                  Dismiss
-                </button>
-                <button type="button" onClick={() => toggleLock(habit.id)} aria-label={`${habit.locked ? 'Unlock' : 'Lock'} ${habit.title}`}>
-                  {habit.locked ? 'Unlock' : 'Lock'} habit
-                </button>
-              </div>
-              {dismissMenu === habit.id && (
-                <div className="dismiss-menu">
-                  <p>Hide this and similar habits:</p>
-                  <button type="button" onClick={() => dismissHabit('week')}>Hide for a week</button>
-                  <button type="button" onClick={() => dismissHabit('month')}>Hide for a month</button>
-                  <button type="button" onClick={() => dismissHabit('forever')}>Don’t show again</button>
-                  <button type="button" onClick={() => setDismissMenu(null)}>Cancel</button>
+            </section>
+            <section className="habit-section">
+              <h3>Suggestions</h3>
+              {portrait.suggestions.length === 0 ? (
+                <p className="status">No suggestions yet</p>
+              ) : (
+                <div className="habit-list">
+                  {portrait.suggestions.map((suggestion) => (
+                    <article className="habit-card" key={suggestion.id}>
+                      <p>{suggestion.body}</p>
+                    </article>
+                  ))}
                 </div>
               )}
-            </article>
-          ))}
-        </div>
-        {lastDismissal && (
-          <div className="dismiss-toast" role="status">
-            <p>
-              Habit hidden. {lastDismissal.duration === 'forever'
-                ? 'Similar habits won’t show again.'
-                : `Similar habits will be hidden for a ${lastDismissal.duration}.`}
-            </p>
-            <button type="button" onClick={undoDismissal}>Undo</button>
-          </div>
+            </section>
+          </>
         )}
         {pendingSharingMode && (
           <div className="dialog-backdrop">
             <div className="sharing-dialog" role="dialog" aria-modal="true" aria-labelledby="sharing-dialog-title">
               <h2 id="sharing-dialog-title">Change how much Pennies shares?</h2>
-              <p>To protect your privacy, all current Spending habits, including Locked habits, will be removed and regenerated.</p>
+              <p>
+                To protect your privacy, the current Financial portrait will be removed and written again for the new
+                sharing mode.
+              </p>
               <div>
-                <button type="button" onClick={() => setPendingSharingMode(null)}>Cancel</button>
-                <button type="button" className="primary-button" onClick={confirmSharingMode}>Change mode</button>
+                <button type="button" onClick={() => setPendingSharingMode(null)}>
+                  Cancel
+                </button>
+                <button type="button" className="primary-button" onClick={confirmSharingMode}>
+                  Change mode
+                </button>
               </div>
             </div>
           </div>
         )}
       </main>
+    </div>
+  )
+}
+
+function HabitCards({ items, empty }) {
+  if (!items || items.length === 0) return <p className="status">{empty}</p>
+  return (
+    <div className="habit-list">
+      {items.map((item) => (
+        <article className="habit-card" key={item}>
+          <p>{item}</p>
+        </article>
+      ))}
     </div>
   )
 }

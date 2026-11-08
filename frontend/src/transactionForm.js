@@ -56,7 +56,6 @@ export function transactionBody(fields) {
   return {
     account_id: fields.accountId,
     amount: signedAmount(fields.amount, fields.direction),
-    category: 'Other',
     vendor: fields.vendor.trim(),
     note: note || null,
     occurred_at: `${fields.when}T00:00:00`,

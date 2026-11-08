@@ -1,6 +1,6 @@
 from datetime import datetime
 from decimal import Decimal
-from typing import Annotated
+from typing import Annotated, Literal
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, PlainSerializer, BeforeValidator
@@ -55,7 +55,6 @@ class AccountOut(ApiModel):
 class TransactionIn(ApiModel):
     account_id: UUID
     amount: Money
-    category: RequiredText
     vendor: RequiredText = Field(max_length=120)
     note: OptionalText = None
     occurred_at: datetime
@@ -127,3 +126,54 @@ class DashboardOut(ApiModel):
     left_to_spend: Money
     monthly_budget: Money | None
     categories: list[CategoryTotal]
+    subscriptions: Money
+
+
+class SubscriptionIn(ApiModel):
+    name: RequiredText = Field(max_length=120)
+    amount: Money
+    year: int
+    month: int
+
+
+class SubscriptionOut(ApiModel):
+    id: UUID
+    name: str
+    amount: Money
+    year: int
+    month: int
+
+
+class SharingIn(ApiModel):
+    mode: Literal["raw", "sanitised"]
+
+
+class SharingOut(ApiModel):
+    mode: str
+
+
+class EducationOut(ApiModel):
+    id: UUID
+    subject: str
+    guide_id: str | None
+    body: str
+
+
+class SuggestionOut(ApiModel):
+    id: UUID
+    education_id: UUID
+    body: str
+
+
+class PortraitOut(ApiModel):
+    reading: str
+    spending_habits: list[str]
+    projected_habits: list[str]
+    educations: list[EducationOut]
+    suggestions: list[SuggestionOut]
+
+
+class ReadingOut(ApiModel):
+    sharing_mode: str
+    updated: bool
+    reading: PortraitOut | None
