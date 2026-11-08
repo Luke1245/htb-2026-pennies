@@ -16,6 +16,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
+from pennies.categories import OTHER
 from pennies.db import make_engine, make_session_factory
 from pennies.models import Account, MonthlyBudget, Subscription, Transaction, TransactionKind
 from pennies.settings import load_settings
@@ -112,7 +113,7 @@ def main() -> None:
                     user_sub=user_sub,
                     account_id=accounts[account].id,
                     amount=Decimal(amount),
-                    category="Other",
+                    category=OTHER,
                     vendor=vendor,
                     note=note,
                     occurred_at=occurred_at,
