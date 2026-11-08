@@ -21,7 +21,13 @@ RUN npm run build
 
 FROM nginx:1.27-alpine
 
-COPY nginx.conf /etc/nginx/conf.d/default.conf
+RUN apk add --no-cache certbot wget
+
+COPY nginx-locations.conf /etc/nginx/app-locations.conf
+COPY docker-entrypoint.sh /docker-entrypoint-pennies.sh
+RUN chmod +x /docker-entrypoint-pennies.sh
+
 COPY --from=build /app/dist /usr/share/nginx/html
 
-EXPOSE 80
+ENTRYPOINT ["/docker-entrypoint-pennies.sh"]
+EXPOSE 80 443

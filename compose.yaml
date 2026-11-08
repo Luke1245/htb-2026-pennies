@@ -40,12 +40,22 @@ services:
     depends_on:
       api:
         condition: service_healthy
+    environment:
+      SITE_ADDRESS: ${SITE_ADDRESS:-}
     ports:
       - "80:80"
+      - "443:443"
+    volumes:
+      - letsencrypt:/etc/letsencrypt
+      - certbot_www:/var/www/certbot
     restart: unless-stopped
-    mem_limit: 128m
+    mem_limit: 256m
     logging:
       driver: json-file
       options:
         max-size: "10m"
         max-file: "3"
+
+volumes:
+  letsencrypt:
+  certbot_www:
