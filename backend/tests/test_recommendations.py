@@ -137,3 +137,23 @@ def test_rebuild_replaces_recommendations():
     second = client.get("/reading").json()["reading"]["recommendations"]
     assert [item["resource_id"] for item in second] == ["national-debtline"]
     assert all(item["guide_id"] != "budgeting-basics" for item in second)
+
+
+def test_duplicate_recommendation_targets_are_dropped():
+    from pennies.reading import RecommendationDraft
+
+    client, _holder, reader = _client_with_history()
+    reader.recommendations = [
+        RecommendationDraft("guide", "budgeting-basics", None, "The groceries need a plan."),
+        RecommendationDraft("guide", "budgeting-basics", None, "Still about the groceries."),
+        RecommendationDraft("resource", None, "stepchange", "Free debt advice fits the pattern."),
+        RecommendationDraft("resource", None, "stepchange", "The same advice again."),
+    ]
+    client.post("/reading")
+
+    recommendations = client.get("/reading").json()["reading"]["recommendations"]
+    assert [item["guide_id"] or item["resource_id"] for item in recommendations] == [
+        "budgeting-basics",
+        "stepchange",
+    ]
+    assert recommendations[0]["reason"] == "The groceries need a plan."

@@ -267,14 +267,23 @@ def _store_portrait(db: Session, user_sub: str, mode: str, draft: ReadingDraft) 
         suggestions.append((item.education_index, body))
     known_resources = resource_ids()
     recommendations = []
+    seen_targets = set()
     for item in draft.recommendations:
         reason = item.reason.strip()
         if not reason:
             continue
+        target = None
         if item.kind == "guide" and item.guide_id in known_guides and item.resource_id is None:
-            recommendations.append((item.kind, item.guide_id, None, reason))
+            target = (item.kind, item.guide_id)
         elif item.kind == "resource" and item.resource_id in known_resources and item.guide_id is None:
-            recommendations.append((item.kind, None, item.resource_id, reason))
+            target = (item.kind, item.resource_id)
+        if target is None or target in seen_targets:
+            continue
+        seen_targets.add(target)
+        if target[0] == "guide":
+            recommendations.append(("guide", target[1], None, reason))
+        else:
+            recommendations.append(("resource", None, target[1], reason))
         if len(recommendations) == 3:
             break
     _delete_portrait(db, user_sub)
