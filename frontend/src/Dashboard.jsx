@@ -1,10 +1,13 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useAuth0 } from '@auth0/auth0-react'
 import './dashboard.css'
+import { AddTransaction } from './AddTransaction.jsx'
+import { apiUrl, authHeaders } from './api.js'
 import { GuideCards, GuideView } from './Guides.jsx'
 import { guides } from './guides.js'
 
-const apiUrl = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000'
+const recordedMessage = 'Transaction recorded'
+const loadMessage = 'Pennies could not load your records'
 
 function greetingFor(date) {
   const hour = date.getHours()
@@ -42,24 +45,25 @@ export default function Dashboard() {
   const name = user?.given_name || user?.name || 'Elodie'
   const [figures, setFigures] = useState(null)
   const [transactions, setTransactions] = useState([])
-  const [error, setError] = useState('')
+  const [status, setStatus] = useState('')
+  const [accounts, setAccounts] = useState([])
+  const [formOpen, setFormOpen] = useState(false)
+  const [reloadKey, setReloadKey] = useState(0)
+  const recorded = useRef(false)
 
   useEffect(() => {
+    const afterRecord = recorded.current
     let cancelled = false
 
     async function load() {
       try {
-        const audience = import.meta.env.VITE_AUTH0_AUDIENCE
-        const token = await getAccessTokenSilently({
-          authorizationParams: audience ? { audience } : undefined,
-        })
-        const headers = { Authorization: `Bearer ${token}` }
+        const headers = await authHeaders(getAccessTokenSilently)
         const [dashboardResponse, transactionResponse] = await Promise.all([
           fetch(`${apiUrl}/dashboard`, { headers }),
           fetch(`${apiUrl}/transactions?limit=20`, { headers }),
         ])
         if (!dashboardResponse.ok || !transactionResponse.ok) {
-          throw new Error('Pennies could not load your records')
+          throw new Error(loadMessage)
         }
         const dashboard = await dashboardResponse.json()
         const page = await transactionResponse.json()
@@ -68,7 +72,9 @@ export default function Dashboard() {
           setTransactions(page.transactions)
         }
       } catch {
-        if (!cancelled) setError('Pennies could not load your records')
+        if (!cancelled) {
+          setStatus(afterRecord ? `${recordedMessage}. ${loadMessage}` : loadMessage)
+        }
       }
     }
 
@@ -76,7 +82,40 @@ export default function Dashboard() {
     return () => {
       cancelled = true
     }
-  }, [getAccessTokenSilently])
+  }, [getAccessTokenSilently, reloadKey])
+
+  async function openForm() {
+    if (formOpen) return
+    try {
+      const headers = await authHeaders(getAccessTokenSilently)
+      const response = await fetch(`${apiUrl}/accounts`, { headers })
+      if (!response.ok) throw new Error(loadMessage)
+      const list = await response.json()
+      if (list.length === 0) {
+        setFormOpen(false)
+        setStatus('An Account is needed.')
+        return
+      }
+      recorded.current = false
+      setAccounts(list)
+      setStatus('')
+      setFormOpen(true)
+    } catch {
+      setFormOpen(false)
+      setStatus(loadMessage)
+    }
+  }
+
+  function closeForm() {
+    setFormOpen(false)
+  }
+
+  function handleRecorded() {
+    recorded.current = true
+    setFormOpen(false)
+    setStatus(recordedMessage)
+    setReloadKey((key) => key + 1)
+  }
 
   const largest = figures?.categories.reduce(
     (highest, category) => Math.max(highest, Number(category.amount)),
@@ -105,8 +144,8 @@ export default function Dashboard() {
             <p className="greeting">
               {greeting}, {name}
             </p>
-            {error && <p className="status">{error}</p>}
-            {!error && !figures && <p className="status">Loading…</p>}
+            {status && <p className="status">{status}</p>}
+            {!status && !figures && <p className="status">Loading…</p>}
             {figures && (
               <div className="tiles">
                 <section className="tile">
@@ -140,7 +179,22 @@ export default function Dashboard() {
                   )}
                 </section>
                 <section className="tile">
-                  <h2>Recent transactions</h2>
+                  <div className="tile-heading">
+                    <h2>Recent transactions</h2>
+                    {!formOpen && (
+                      <button type="button" className="add-transaction" onClick={openForm}>
+                        Add transaction
+                      </button>
+                    )}
+                  </div>
+                  {formOpen && (
+                    <AddTransaction
+                      accounts={accounts}
+                      getAccessTokenSilently={getAccessTokenSilently}
+                      onRecorded={handleRecorded}
+                      onCancel={closeForm}
+                    />
+                  )}
                   {transactions.length === 0 ? (
                     <p className="status">No transactions yet</p>
                   ) : (
@@ -159,7 +213,13 @@ export default function Dashboard() {
                 </section>
               </div>
             )}
-            <GuideCards guides={guides} onSelect={setSelectedGuide} />
+            <GuideCards
+              guides={guides}
+              onSelect={(guide) => {
+                setFormOpen(false)
+                setSelectedGuide(guide)
+              }}
+            />
           </>
         )}
       </main>
