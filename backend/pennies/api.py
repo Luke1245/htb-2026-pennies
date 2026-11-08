@@ -47,6 +47,7 @@ from pennies.subscriptions import (
     list_subscriptions,
     update_subscription,
 )
+from pennies.users import display_name_for, set_display_name
 from pennies.schemas import (
     AccountIn,
     AccountOut,
@@ -71,6 +72,8 @@ from pennies.schemas import (
     SharingIn,
     SharingOut,
     ReadingOut,
+    ProfileIn,
+    ProfileOut,
 )
 from pennies.settings import load_settings
 
@@ -118,6 +121,18 @@ def create_app(database_url: str | None = None, clock=None, reader=None) -> Fast
     @app.get("/health")
     def health():
         return {"status": "ok"}
+
+    @app.get("/me", response_model=ProfileOut)
+    def get_me(db=Depends(get_db), user_sub: str = Depends(get_current_user)):
+        return {"display_name": display_name_for(db, user_sub)}
+
+    @app.put("/me", response_model=ProfileOut)
+    def put_me(
+        body: ProfileIn,
+        db=Depends(get_db),
+        user_sub: str = Depends(get_current_user),
+    ):
+        return {"display_name": set_display_name(db, user_sub, body.display_name)}
 
     @app.post("/accounts", response_model=AccountOut)
     def post_account(

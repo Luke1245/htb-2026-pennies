@@ -42,6 +42,7 @@ describe('App', () => {
     const user = userEvent.setup()
     const fetchMock = vi.fn(async (url) => {
       const path = String(url)
+      if (path.endsWith('/me')) return json({ display_name: 'Alex' })
       if (path.includes('/dashboard')) {
         return json({ spent_this_month: '10.00', left_to_spend: '20.00', categories: [], subscriptions: '0.00' })
       }
@@ -64,6 +65,7 @@ describe('App', () => {
     const user = userEvent.setup()
     const fetchMock = vi.fn(async (url) => {
       const path = String(url)
+      if (path.endsWith('/me')) return json({ display_name: 'Alex' })
       if (path.includes('/dashboard')) {
         return json({ spent_this_month: '10.00', left_to_spend: '20.00', categories: [], subscriptions: '0.00' })
       }
