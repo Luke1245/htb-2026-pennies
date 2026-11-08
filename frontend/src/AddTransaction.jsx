@@ -17,7 +17,7 @@ const CATEGORIES = [
   'Income',
   'Other',
 ]
-const CATEGORY_DELAY_MS = 400
+const NOTE_DELAY_MS = 150
 
 function categoryRequest(vendor, note, amount, direction) {
   const vendorName = vendor.trim()
@@ -47,6 +47,7 @@ export function AddTransaction({
   const [vendor, setVendor] = useState('')
   const [note, setNote] = useState('')
   const [category, setCategory] = useState({ key: '', name: '' })
+  const [committedVendor, setCommittedVendor] = useState('')
   const [when, setWhen] = useState(() => londonDate(clock()))
   const [problem, setProblem] = useState('')
   const [sending, setSending] = useState(false)
@@ -54,6 +55,7 @@ export function AddTransaction({
   const [vendorsOpen, setVendorsOpen] = useState(false)
   const [activeVendor, setActiveVendor] = useState(0)
   const saving = useRef(false)
+  const requestNow = useRef(false)
   const vendorMatches = matchingVendors(knownVendors, vendor)
 
   useEffect(() => {
@@ -72,16 +74,21 @@ export function AddTransaction({
     }
   }, [getAccessTokenSilently])
 
+  const typedVendor = vendor.trim()
+  const vendorReady =
+    committedVendor.length >= 2 &&
+    typedVendor.toLowerCase() === committedVendor.toLowerCase()
   const categoryKey = JSON.stringify(categoryRequest(vendor, note, amount, direction))
-  const selectedCategory =
-    vendor.trim().length >= 2 && category.key === categoryKey ? category.name : ''
+  const selectedCategory = vendorReady && category.key === categoryKey ? category.name : ''
 
   useEffect(() => {
+    if (!vendorReady) return undefined
     const request = categoryRequest(vendor, note, amount, direction)
-    if (request.vendor.length < 2) return undefined
     const key = JSON.stringify(request)
     let cancelled = false
+    const delay = requestNow.current ? 0 : NOTE_DELAY_MS
     const timer = setTimeout(async () => {
+      requestNow.current = false
       try {
         const headers = await authHeaders(getAccessTokenSilently)
         const response = await fetch(`${apiUrl}/category-suggestions`, {
@@ -97,16 +104,25 @@ export function AddTransaction({
       } catch {
         if (!cancelled) setCategory({ key, name: '' })
       }
-    }, CATEGORY_DELAY_MS)
+    }, delay)
     return () => {
       cancelled = true
       clearTimeout(timer)
     }
-  }, [vendor, note, amount, direction, getAccessTokenSilently])
+  }, [vendorReady, vendor, note, amount, direction, getAccessTokenSilently])
+
+  function commitVendor(name) {
+    const trimmed = name.trim()
+    if (trimmed.length < 2) return
+    if (trimmed.toLowerCase() === committedVendor.toLowerCase()) return
+    requestNow.current = true
+    setCommittedVendor(trimmed)
+  }
 
   function chooseVendor(name) {
     setVendor(name)
     setVendorsOpen(false)
+    commitVendor(name)
   }
 
   function onVendorKey(event) {
@@ -218,12 +234,20 @@ export function AddTransaction({
           value={vendor}
           maxLength={120}
           onChange={(event) => {
-            setVendor(event.target.value)
+            const value = event.target.value
+            setVendor(value)
             setVendorsOpen(true)
             setActiveVendor(0)
+            const known = knownVendors.find(
+              (name) => name.toLowerCase() === value.trim().toLowerCase(),
+            )
+            if (known) commitVendor(known)
           }}
           onFocus={() => setVendorsOpen(true)}
-          onBlur={() => setVendorsOpen(false)}
+          onBlur={() => {
+            setVendorsOpen(false)
+            commitVendor(vendor)
+          }}
           onKeyDown={onVendorKey}
         />
         {vendorsOpen && vendorMatches.length > 0 && (
