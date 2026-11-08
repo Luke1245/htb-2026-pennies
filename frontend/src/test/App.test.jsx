@@ -11,6 +11,7 @@ vi.mock('@auth0/auth0-react', () => ({
     isAuthenticated: true,
     user: { given_name: 'Alex' },
     logout: vi.fn(),
+    getAccessTokenSilently: vi.fn().mockResolvedValue('test-token'),
   }),
 }))
 
@@ -29,9 +30,12 @@ describe('App', () => {
       }],
     })
     const user = userEvent.setup()
+    vi.stubGlobal('fetch', vi.fn()
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ spent_this_month: '10.00', left_to_spend: '20.00', categories: [] }) })
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ transactions: [] }) }))
     render(<App />)
 
-    await user.click(screen.getByRole('link', { name: 'View spending habits' }))
+    await user.click(await screen.findByRole('link', { name: 'View spending habits' }))
     await screen.findByRole('heading', { name: 'Weekend treats' })
     await user.click(screen.getByRole('button', { name: '← Back to dashboard' }))
     await user.click(screen.getByRole('link', { name: 'View spending habits' }))

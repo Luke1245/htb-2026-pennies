@@ -1,23 +1,14 @@
+import { useEffect, useRef, useState } from 'react'
 import { useAuth0 } from '@auth0/auth0-react'
 import './dashboard.css'
+import { AddTransaction } from './AddTransaction.jsx'
+import { apiUrl, authHeaders } from './api.js'
+import { GuideCards, GuideView } from './Guides.jsx'
+import { useGuideRoute } from './useGuideRoute.js'
+import { guides } from './guides.js'
 
-// DUMMY - delete this object when real data is wired up.
-const dummy = {
-  spentThisMonth: '£642',
-  leftToSpend: '£358',
-  transactions: [
-    { merchant: 'Tesco', when: 'Today', amount: '-£18.40' },
-    { merchant: 'Lothian Buses', when: 'Yesterday', amount: '-£2.00' },
-    { merchant: 'Salary', when: 'Mon', amount: '+£1,850' },
-    { merchant: 'Cafe', when: 'Mon', amount: '-£4.60' },
-  ],
-  categories: [
-    { name: 'Groceries', amount: '£186', share: 72 },
-    { name: 'Bills', amount: '£210', share: 80 },
-    { name: 'Eating out', amount: '£91', share: 40 },
-    { name: 'Transport', amount: '£64', share: 28 },
-  ],
-}
+const recordedMessage = 'Transaction recorded'
+const loadMessage = 'Pennies could not load your records'
 
 function greetingFor(date) {
   const hour = date.getHours()
@@ -26,10 +17,112 @@ function greetingFor(date) {
   return 'Good evening'
 }
 
+function pounds(value) {
+  const amount = Number(value)
+  const text = `£${Math.abs(amount).toFixed(2)}`
+  return amount < 0 ? `-${text}` : text
+}
+
+function signedPounds(value) {
+  const amount = Number(value)
+  const text = pounds(Math.abs(amount))
+  if (amount < 0) return `-${text}`
+  if (amount > 0) return `+${text}`
+  return text
+}
+
+function whenLabel(occurredAt) {
+  return new Intl.DateTimeFormat('en-GB', {
+    timeZone: 'Europe/London',
+    day: 'numeric',
+    month: 'short',
+  }).format(new Date(occurredAt))
+}
+
 export default function Dashboard({ onViewSpendingHabits }) {
-  const { user, logout } = useAuth0()
+  const { user, logout, getAccessTokenSilently } = useAuth0()
+  const { selectedGuide, openGuide, closeGuide } = useGuideRoute()
   const greeting = greetingFor(new Date())
   const name = user?.given_name || user?.name || 'Elodie'
+  const [figures, setFigures] = useState(null)
+  const [transactions, setTransactions] = useState([])
+  const [status, setStatus] = useState('')
+  const [accounts, setAccounts] = useState([])
+  const [formOpen, setFormOpen] = useState(false)
+  const [reloadKey, setReloadKey] = useState(0)
+  const recorded = useRef(false)
+
+  useEffect(() => {
+    const afterRecord = recorded.current
+    let cancelled = false
+
+    async function load() {
+      try {
+        const headers = await authHeaders(getAccessTokenSilently)
+        const [dashboardResponse, transactionResponse] = await Promise.all([
+          fetch(`${apiUrl}/dashboard`, { headers }),
+          fetch(`${apiUrl}/transactions?limit=20`, { headers }),
+        ])
+        if (!dashboardResponse.ok || !transactionResponse.ok) {
+          throw new Error(loadMessage)
+        }
+        const dashboard = await dashboardResponse.json()
+        const page = await transactionResponse.json()
+        if (!cancelled) {
+          setFigures(dashboard)
+          setTransactions(page.transactions)
+        }
+      } catch {
+        if (!cancelled) {
+          setStatus(afterRecord ? `${recordedMessage}. ${loadMessage}` : loadMessage)
+        }
+      }
+    }
+
+    load()
+    return () => {
+      cancelled = true
+    }
+  }, [getAccessTokenSilently, reloadKey])
+
+  async function openForm() {
+    if (formOpen) return
+    try {
+      const headers = await authHeaders(getAccessTokenSilently)
+      const response = await fetch(`${apiUrl}/accounts`, { headers })
+      if (!response.ok) throw new Error(loadMessage)
+      const list = await response.json()
+      if (list.length === 0) {
+        setFormOpen(false)
+        setStatus('An Account is needed.')
+        return
+      }
+      recorded.current = false
+      setAccounts(list)
+      setStatus('')
+      setFormOpen(true)
+    } catch {
+      setFormOpen(false)
+      setStatus(loadMessage)
+    }
+  }
+
+  function closeForm() {
+    setFormOpen(false)
+  }
+
+  function handleRecorded() {
+    recorded.current = true
+    setFormOpen(false)
+    setStatus(recordedMessage)
+    setReloadKey((key) => key + 1)
+    window.dispatchEvent(new Event('pennies:transactions-changed'))
+  }
+
+  const largest = figures?.categories.reduce(
+    (highest, category) => Math.max(highest, Number(category.amount)),
+    0,
+  )
 
   return (
     <div className="dashboard">
@@ -46,57 +139,101 @@ export default function Dashboard({ onViewSpendingHabits }) {
         </button>
       </header>
       <main className="dashboard-main">
-        <p className="greeting">
-          {greeting}, {name}
-        </p>
-        <div className="tiles">
-          <section className="tile">
-            <h2>Spent this month</h2>
-            <p className="stat">{dummy.spentThisMonth}</p>
-          </section>
-          <section className="tile">
-            <h2>Left to spend</h2>
-            <p className="stat">{dummy.leftToSpend}</p>
-          </section>
-          <section className="tile">
-            <h2>Spending insights</h2>
-            <ul className="bars">
-              {dummy.categories.map((category) => (
-                <li key={category.name}>
-                  <span>{category.name}</span>
-                  <span className="bar" aria-hidden="true">
-                    <span style={{ width: `${category.share}%` }} />
-                  </span>
-                  <span>{category.amount}</span>
-                </li>
-              ))}
-            </ul>
-            <a
-              href="#spending-habits"
-              className="habits-link"
-              onClick={(event) => {
-                event.preventDefault()
-                onViewSpendingHabits()
+        {selectedGuide ? (
+          <GuideView guide={selectedGuide} onBack={closeGuide} />
+        ) : (
+          <>
+            <p className="greeting">
+              {greeting}, {name}
+            </p>
+            {status && <p className="status">{status}</p>}
+            {!status && !figures && <p className="status">Loading…</p>}
+            {figures && (
+              <div className="tiles">
+                <section className="tile">
+                  <h2>Spent this month</h2>
+                  <p className="stat">{pounds(figures.spent_this_month)}</p>
+                </section>
+                <section className="tile">
+                  <h2>Left to spend</h2>
+                  <p className="stat">{pounds(figures.left_to_spend)}</p>
+                </section>
+                <section className="tile">
+                  <h2>Spending insights</h2>
+                  {figures.categories.length === 0 ? (
+                    <p className="status">No spending this month</p>
+                  ) : (
+                    <ul className="bars">
+                      {figures.categories.map((category) => (
+                        <li key={category.name}>
+                          <span>{category.name}</span>
+                          <span className="bar" aria-hidden="true">
+                            <span
+                              style={{
+                                width: `${largest ? (Number(category.amount) / largest) * 100 : 0}%`,
+                              }}
+                            />
+                          </span>
+                          <span>{pounds(category.amount)}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                  <a
+                    href="#spending-habits"
+                    className="habits-link"
+                    onClick={(event) => {
+                      event.preventDefault()
+                      onViewSpendingHabits()
+                    }}
+                  >
+                    View spending habits <span aria-hidden="true">→</span>
+                  </a>
+                </section>
+                <section className="tile">
+                  {!formOpen && (
+                    <div className="tile-heading">
+                      <h2>Recent transactions</h2>
+                      <button type="button" className="add-transaction" onClick={openForm}>
+                        Add transaction
+                      </button>
+                    </div>
+                  )}
+                  {formOpen && (
+                    <AddTransaction
+                      accounts={accounts}
+                      getAccessTokenSilently={getAccessTokenSilently}
+                      onRecorded={handleRecorded}
+                      onCancel={closeForm}
+                    />
+                  )}
+                  {transactions.length === 0 ? (
+                    <p className="status">No transactions yet</p>
+                  ) : (
+                    <ul className="transactions">
+                      {transactions.map((transaction) => (
+                        <li key={transaction.id}>
+                          <span>
+                            {transaction.vendor || transaction.category}
+                            <small>{whenLabel(transaction.occurred_at)}</small>
+                          </span>
+                          <span>{signedPounds(transaction.amount)}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </section>
+              </div>
+            )}
+            <GuideCards
+              guides={guides}
+              onSelect={(guide) => {
+                setFormOpen(false)
+                openGuide(guide)
               }}
-            >
-              View spending habits <span aria-hidden="true">→</span>
-            </a>
-          </section>
-          <section className="tile">
-            <h2>Recent transactions</h2>
-            <ul className="transactions">
-              {dummy.transactions.map((transaction) => (
-                <li key={transaction.merchant}>
-                  <span>
-                    {transaction.merchant}
-                    <small>{transaction.when}</small>
-                  </span>
-                  <span>{transaction.amount}</span>
-                </li>
-              ))}
-            </ul>
-          </section>
-        </div>
+            />
+          </>
+        )}
       </main>
     </div>
   )

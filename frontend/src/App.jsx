@@ -1,8 +1,20 @@
 import { useState } from 'react'
 import { useAuth0 } from '@auth0/auth0-react'
+import './dashboard.css'
 import './App.css'
 import Dashboard from './Dashboard.jsx'
 import SpendingHabitsPage from './SpendingHabitsPage.jsx'
+
+function PenniesShell({ children }) {
+  return (
+    <div className="dashboard">
+      <header className="banner">
+        <h1>Pennies</h1>
+      </header>
+      <main className="dashboard-main">{children}</main>
+    </div>
+  )
+}
 
 function App() {
   const { isLoading, isAuthenticated, error, loginWithRedirect, logout } = useAuth0()
@@ -11,25 +23,41 @@ function App() {
 
   if (isLoading) {
     return (
-      <main className="screen">
-        <p>Loading…</p>
-      </main>
+      <PenniesShell>
+        <p className="status">Loading…</p>
+      </PenniesShell>
     )
   }
 
   if (!isAuthenticated) {
     return (
-      <main className="screen">
-        <h1>Log in</h1>
-        {error && <p>Error: {error.message}</p>}
-        <button
-          type="button"
-          className="login"
-          onClick={() => loginWithRedirect()}
-        >
-          Log in
-        </button>
-      </main>
+      <PenniesShell>
+        <section className="auth-panel">
+          <h2>Welcome</h2>
+          <p>Log in or create an account to see your spending.</p>
+          {error && <p className="status">Error: {error.message}</p>}
+          <div className="auth-actions">
+            <button
+              type="button"
+              className="primary"
+              onClick={() => loginWithRedirect()}
+            >
+              Log in
+            </button>
+            <button
+              type="button"
+              className="secondary"
+              onClick={() =>
+                loginWithRedirect({
+                  authorizationParams: { screen_hint: 'signup' },
+                })
+              }
+            >
+              Sign up
+            </button>
+          </div>
+        </section>
+      </PenniesShell>
     )
   }
 

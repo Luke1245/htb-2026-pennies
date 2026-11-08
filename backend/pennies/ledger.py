@@ -1,0 +1,194 @@
+import uuid
+from dataclasses import dataclass
+from datetime import datetime
+from decimal import Decimal
+
+from sqlalchemy import select
+from sqlalchemy.orm import Session
+
+from pennies.calendar import as_utc
+from pennies.categories import ADJUSTMENT_CATEGORY, ADJUSTMENT_VENDOR, OTHER, require_ordinary_category
+from pennies.errors import DomainError
+from pennies.models import Account, Transaction, TransactionKind
+
+
+@dataclass(frozen=True)
+class NewAccount:
+    name: str
+    opening_balance: Decimal
+
+
+@dataclass(frozen=True)
+class NewTransaction:
+    account_id: uuid.UUID
+    amount: Decimal
+    category: str
+    vendor: str
+    note: str | None
+    occurred_at: datetime
+
+
+@dataclass(frozen=True)
+class NewTransfer:
+    from_account_id: uuid.UUID
+    to_account_id: uuid.UUID
+    amount: Decimal
+    occurred_at: datetime
+    note: str | None
+
+
+@dataclass(frozen=True)
+class ReconciliationRequest:
+    account_id: uuid.UUID
+    real_balance: Decimal
+    occurred_at: datetime
+
+
+def create_account(db: Session, user_sub: str, command: NewAccount) -> Account:
+    account = Account(
+        user_sub=user_sub,
+        name=command.name,
+        opening_balance=command.opening_balance,
+    )
+    db.add(account)
+    db.flush()
+    return account
+
+
+def list_accounts(db: Session, user_sub: str) -> list[tuple[Account, Decimal]]:
+    accounts = db.scalars(
+        select(Account).where(Account.user_sub == user_sub).order_by(Account.name, Account.id)
+    ).all()
+    return [(account, calculated_balance(db, account)) for account in accounts]
+
+
+def calculated_balance(db: Session, account: Account) -> Decimal:
+    amounts = db.scalars(
+        select(Transaction.amount).where(Transaction.account_id == account.id)
+    ).all()
+    return account.opening_balance + sum(amounts, Decimal("0.00"))
+
+
+def owned_account(db: Session, user_sub: str, account_id: uuid.UUID) -> Account:
+    account = db.get(Account, account_id)
+    if account is None or account.user_sub != user_sub:
+        raise DomainError("Account not found", status_code=404)
+    return account
+
+
+def create_transaction(db: Session, user_sub: str, command: NewTransaction) -> Transaction:
+    account = owned_account(db, user_sub, command.account_id)
+    if command.amount == 0:
+        raise DomainError("Amount must not be zero")
+    require_ordinary_category(command.category)
+    transaction = Transaction(
+        user_sub=user_sub,
+        account_id=account.id,
+        amount=command.amount,
+        category=OTHER,
+        vendor=command.vendor,
+        note=command.note,
+        occurred_at=as_utc(command.occurred_at),
+        kind=TransactionKind.ordinary,
+    )
+    db.add(transaction)
+    db.flush()
+    return transaction
+
+
+def list_transactions(
+    db: Session, user_sub: str, limit: int, offset: int
+) -> tuple[list[Transaction], int | None]:
+    if limit < 1 or limit > 100:
+        raise DomainError("Limit must be from 1 to 100")
+    if offset < 0:
+        raise DomainError("Offset must be zero or greater")
+    rows = list(
+        db.scalars(
+            select(Transaction)
+            .where(Transaction.user_sub == user_sub)
+            .order_by(Transaction.occurred_at.desc(), Transaction.id.desc())
+            .offset(offset)
+            .limit(limit + 1)
+        ).all()
+    )
+    page = rows[:limit]
+    next_offset = offset + limit if len(rows) > limit else None
+    return page, next_offset
+
+
+def update_category(
+    db: Session, user_sub: str, transaction_id: uuid.UUID, category: str
+) -> Transaction:
+    transaction = db.get(Transaction, transaction_id)
+    if transaction is None or transaction.user_sub != user_sub:
+        raise DomainError("Transaction not found", status_code=404)
+    if transaction.kind is not TransactionKind.ordinary:
+        raise DomainError("Only an ordinary transaction's category can be changed")
+    require_ordinary_category(category)
+    transaction.category = OTHER
+    db.flush()
+    return transaction
+
+
+def create_transfer(
+    db: Session, user_sub: str, command: NewTransfer
+) -> tuple[Transaction, Transaction]:
+    if command.from_account_id == command.to_account_id:
+        raise DomainError("A transfer must use two different accounts")
+    source = owned_account(db, user_sub, command.from_account_id)
+    destination = owned_account(db, user_sub, command.to_account_id)
+    if command.amount <= 0:
+        raise DomainError("Transfer amount must be greater than zero")
+    when = as_utc(command.occurred_at)
+    transfer_id = uuid.uuid4()
+    outflow = _transfer_leg(user_sub, source.id, -command.amount, command.note, when, transfer_id)
+    inflow = _transfer_leg(user_sub, destination.id, command.amount, command.note, when, transfer_id)
+    db.add(outflow)
+    db.add(inflow)
+    db.flush()
+    return outflow, inflow
+
+
+def reconcile(
+    db: Session, user_sub: str, command: ReconciliationRequest
+) -> tuple[Decimal, Transaction | None]:
+    account = owned_account(db, user_sub, command.account_id)
+    current = calculated_balance(db, account)
+    difference = command.real_balance - current
+    if difference == 0:
+        return current, None
+    adjustment = Transaction(
+        user_sub=user_sub,
+        account_id=account.id,
+        amount=difference,
+        category=ADJUSTMENT_CATEGORY,
+        vendor=ADJUSTMENT_VENDOR,
+        note=None,
+        occurred_at=as_utc(command.occurred_at),
+        kind=TransactionKind.adjustment,
+    )
+    db.add(adjustment)
+    db.flush()
+    return current, adjustment
+
+
+def _transfer_leg(
+    user_sub: str,
+    account_id: uuid.UUID,
+    amount: Decimal,
+    note: str | None,
+    occurred_at: datetime,
+    transfer_id: uuid.UUID,
+) -> Transaction:
+    return Transaction(
+        user_sub=user_sub,
+        account_id=account_id,
+        amount=amount,
+        category=OTHER,
+        vendor=None,
+        note=note,
+        occurred_at=occurred_at,
+        kind=TransactionKind.transfer,
+        transfer_id=transfer_id,
+    )
