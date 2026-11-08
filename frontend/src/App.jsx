@@ -1,7 +1,9 @@
+import { useState } from 'react'
 import { useAuth0 } from '@auth0/auth0-react'
 import './dashboard.css'
 import './App.css'
 import Dashboard from './Dashboard.jsx'
+import SpendingHabitsPage from './SpendingHabitsPage.jsx'
 
 function PenniesShell({ children }) {
   return (
@@ -15,7 +17,9 @@ function PenniesShell({ children }) {
 }
 
 function App() {
-  const { isLoading, isAuthenticated, error, loginWithRedirect } = useAuth0()
+  const { isLoading, isAuthenticated, error, loginWithRedirect, logout } = useAuth0()
+  const [page, setPage] = useState('dashboard')
+  const [hasOpenedHabits, setHasOpenedHabits] = useState(false)
 
   if (isLoading) {
     return (
@@ -57,7 +61,27 @@ function App() {
     )
   }
 
-  return <Dashboard />
+  const openHabits = () => {
+    setHasOpenedHabits(true)
+    setPage('spending-habits')
+  }
+
+  return (
+    <>
+      <div hidden={page !== 'dashboard'}>
+        <Dashboard onViewSpendingHabits={openHabits} />
+      </div>
+      {hasOpenedHabits && (
+        <div hidden={page !== 'spending-habits'}>
+          <SpendingHabitsPage
+            isActive={page === 'spending-habits'}
+            onBack={() => setPage('dashboard')}
+            onLogout={() => logout({ logoutParams: { returnTo: window.location.origin } })}
+          />
+        </div>
+      )}
+    </>
+  )
 }
 
 export default App

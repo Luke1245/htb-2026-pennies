@@ -39,7 +39,7 @@ function whenLabel(occurredAt) {
   }).format(new Date(occurredAt))
 }
 
-export default function Dashboard() {
+export default function Dashboard({ onViewSpendingHabits }) {
   const { user, logout, getAccessTokenSilently } = useAuth0()
   const { selectedGuide, openGuide, closeGuide } = useGuideRoute()
   const greeting = greetingFor(new Date())
@@ -116,6 +116,7 @@ export default function Dashboard() {
     setFormOpen(false)
     setStatus(recordedMessage)
     setReloadKey((key) => key + 1)
+    window.dispatchEvent(new Event('pennies:transactions-changed'))
   }
 
   const largest = figures?.categories.reduce(
@@ -178,6 +179,16 @@ export default function Dashboard() {
                       ))}
                     </ul>
                   )}
+                  <a
+                    href="#spending-habits"
+                    className="habits-link"
+                    onClick={(event) => {
+                      event.preventDefault()
+                      onViewSpendingHabits()
+                    }}
+                  >
+                    View spending habits <span aria-hidden="true">→</span>
+                  </a>
                 </section>
                 <section className="tile">
                   {!formOpen && (

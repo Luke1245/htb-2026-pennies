@@ -46,6 +46,16 @@ A classification from Pennies' predefined list, assigned to every Transaction by
 **Spending habit**:
 An AI-generated summary of a pattern in a user's historical spending behaviour.
 
+**Emerging habit**:
+A tentative Spending habit based on limited supporting evidence, presented as something to keep an eye on rather than established behaviour.
+
+**Locked habit**:
+A Spending habit protected from replacement during ordinary regeneration, but discarded when the AI sharing mode changes.
+_Avoid_: Pinned habit
+
+**Dismissed habit**:
+A Spending habit whose underlying pattern is hidden for a week, a month, or indefinitely, including similar future Spending habits.
+
 **Guide**:
 A short, curated financial-literacy article based on trusted sources, without AI generation or personalisation.
 _Avoid_: Education guide, basic advice
