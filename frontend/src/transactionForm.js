@@ -45,10 +45,39 @@ export function validationMessage(fields, now) {
   return ''
 }
 
-export function signedAmount(raw, direction) {
+export function positiveAmount(raw) {
   const [whole, fraction = ''] = raw.trim().split('.')
-  const positive = `${whole}.${(fraction + '00').slice(0, 2)}`
+  return `${whole}.${(fraction + '00').slice(0, 2)}`
+}
+
+export function signedAmount(raw, direction) {
+  const positive = positiveAmount(raw)
   return direction === 'outflow' ? `-${positive}` : positive
+}
+
+export function transferValidationMessage(fields, now) {
+  if (!fields.fromAccountId) return 'Choose an Account to transfer from.'
+  if (!fields.toAccountId) return 'Choose an Account to transfer to.'
+  if (fields.fromAccountId === fields.toAccountId) return 'Choose two different Accounts.'
+  const amount = amountMessage(fields.amount)
+  if (amount) return amount
+  if (!fields.when) return 'Choose a date.'
+  if (fields.when > londonDate(now)) {
+    return 'Choose a date that is today or in the past.'
+  }
+  if (fields.note.trim().length > 500) return 'A note must be 500 characters or fewer.'
+  return ''
+}
+
+export function transferBody(fields) {
+  const note = fields.note.trim()
+  return {
+    from_account_id: fields.fromAccountId,
+    to_account_id: fields.toAccountId,
+    amount: positiveAmount(fields.amount),
+    note: note || null,
+    occurred_at: `${fields.when}T00:00:00`,
+  }
 }
 
 export function transactionBody(fields) {

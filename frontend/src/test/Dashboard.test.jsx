@@ -16,7 +16,8 @@ describe('Dashboard', () => {
   it('opens Spending habits from Spending insights', async () => {
     vi.stubGlobal('fetch', vi.fn()
       .mockResolvedValueOnce({ ok: true, json: async () => ({ spent_this_month: '10.00', left_to_spend: '20.00', categories: [] }) })
-      .mockResolvedValueOnce({ ok: true, json: async () => ({ transactions: [] }) }))
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ transactions: [] }) })
+      .mockResolvedValueOnce({ ok: true, json: async () => [] }))
     render(
       <MemoryRouter>
         <Routes>

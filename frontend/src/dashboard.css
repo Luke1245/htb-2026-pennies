@@ -252,6 +252,7 @@
 }
 
 .add-transaction,
+.add-transfer,
 .add-account,
 .form-actions button {
   font: inherit;
@@ -272,6 +273,7 @@
 }
 
 .add-transaction:disabled,
+.add-transfer:disabled,
 .add-account:disabled,
 .form-actions button:disabled {
   cursor: default;
@@ -279,6 +281,7 @@
 }
 
 .add-transaction:focus-visible,
+.add-transfer:focus-visible,
 .add-account:focus-visible,
 .form-actions button:focus-visible,
 .record-form input:focus-visible,
