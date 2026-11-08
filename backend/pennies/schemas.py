@@ -40,6 +40,14 @@ class ApiModel(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
 
+class ProfileIn(ApiModel):
+    display_name: RequiredText = Field(max_length=80)
+
+
+class ProfileOut(ApiModel):
+    display_name: str | None
+
+
 class AccountIn(ApiModel):
     name: RequiredText = Field(max_length=80)
     opening_balance: Money

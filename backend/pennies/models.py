@@ -3,7 +3,18 @@ from datetime import datetime
 from decimal import Decimal
 from enum import Enum
 
-from sqlalchemy import DateTime, Enum as SqlEnum, Numeric, String, Text, TypeDecorator, UniqueConstraint, Uuid
+from sqlalchemy import (
+    DateTime,
+    Enum as SqlEnum,
+    Integer,
+    Numeric,
+    String,
+    Text,
+    TypeDecorator,
+    UniqueConstraint,
+    Uuid,
+    func,
+)
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 
@@ -26,6 +37,16 @@ class MoneyColumn(TypeDecorator):
 
 class Base(DeclarativeBase):
     pass
+
+
+class User(Base):
+    __tablename__ = "users"
+
+    user_id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    auth_subject: Mapped[str] = mapped_column(Text, unique=True)
+    email: Mapped[str | None] = mapped_column(Text, nullable=True)
+    display_name: Mapped[str] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
 class Account(Base):

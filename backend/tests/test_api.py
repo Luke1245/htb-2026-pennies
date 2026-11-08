@@ -271,6 +271,27 @@ def test_transactions_can_be_read_past_the_first_page():
     assert second.json()["next_offset"] is None
 
 
+def test_display_name_is_stored_for_the_signed_in_user():
+    client, holder = make_client()
+    assert client.get("/me").json() == {"display_name": None}
+
+    created = client.put("/me", json={"display_name": "  Ada  "})
+    assert created.status_code == 200, created.text
+    assert created.json() == {"display_name": "Ada"}
+    assert client.get("/me").json() == {"display_name": "Ada"}
+
+    blank = client.put("/me", json={"display_name": "   "})
+    assert blank.status_code == 422
+
+    holder["sub"] = "user-b"
+    assert client.get("/me").json() == {"display_name": None}
+    other = client.put("/me", json={"display_name": "Bo"})
+    assert other.status_code == 200, other.text
+
+    holder["sub"] = "user-a"
+    assert client.get("/me").json() == {"display_name": "Ada"}
+
+
 def test_database_url_must_be_postgres():
     with pytest.raises(RuntimeError):
         Settings(database_url="").required_database_url()
