@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react'
+import { act, fireEvent, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 import SpendingHabitsPage from '../SpendingHabitsPage.jsx'
@@ -157,4 +157,80 @@ describe('Spending habits page', () => {
     expect(screen.getAllByRole('heading', { level: 3 })).toHaveLength(3)
     expect(screen.getByRole('heading', { name: 'Weekend treats' })).toBeInTheDocument()
   })
+
+  it('ignores a Raw response that finishes after switching to Sanitised sharing', async () => {
+    let resolveRaw
+    const rawRequest = new Promise((resolve) => { resolveRaw = resolve })
+    const sanitisedHabit = { ...habits[0], id: 'sanitised', title: 'Sanitised habit' }
+    const generateHabits = vi.fn()
+      .mockReturnValueOnce(rawRequest)
+      .mockResolvedValueOnce({ habits: [sanitisedHabit] })
+    const user = userEvent.setup()
+    render(<SpendingHabitsPage generateHabits={generateHabits} onBack={() => {}} />)
+
+    await user.selectOptions(screen.getByLabelText('AI sharing mode'), 'sanitised')
+    await user.click(screen.getByRole('button', { name: 'Change mode' }))
+    await screen.findByRole('heading', { name: 'Sanitised habit' })
+    await act(async () => { resolveRaw({ habits }) })
+
+    expect(screen.queryByRole('heading', { name: 'Weekend treats' })).not.toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Sanitised habit' })).toBeInTheDocument()
+  })
+
+  it('does not restore a habit dismissed while regeneration is pending', async () => {
+    let resolveRefresh
+    const refreshRequest = new Promise((resolve) => { resolveRefresh = resolve })
+    const generateHabits = vi.fn()
+      .mockResolvedValueOnce({ habits })
+      .mockReturnValueOnce(refreshRequest)
+    const user = userEvent.setup()
+    render(<SpendingHabitsPage generateHabits={generateHabits} onBack={() => {}} />)
+
+    await screen.findByRole('heading', { name: 'Weekend treats' })
+    fireEvent(window, new Event('pennies:transactions-changed'))
+    await user.click(screen.getByRole('button', { name: 'Dismiss Weekend treats' }))
+    await user.click(screen.getByRole('button', { name: 'Don’t show again' }))
+    await act(async () => { resolveRefresh({ habits }) })
+
+    expect(screen.queryByRole('heading', { name: 'Weekend treats' })).not.toBeInTheDocument()
+  })
+
+  it('ignores an older refresh that finishes after a newer refresh', async () => {
+    let resolveOlder
+    let resolveNewer
+    const olderRequest = new Promise((resolve) => { resolveOlder = resolve })
+    const newerRequest = new Promise((resolve) => { resolveNewer = resolve })
+    const generateHabits = vi.fn()
+      .mockResolvedValueOnce({ habits })
+      .mockReturnValueOnce(olderRequest)
+      .mockReturnValueOnce(newerRequest)
+    render(<SpendingHabitsPage generateHabits={generateHabits} onBack={() => {}} />)
+    await screen.findByRole('heading', { name: 'Weekend treats' })
+
+    fireEvent(window, new Event('pennies:transactions-changed'))
+    fireEvent(window, new Event('pennies:transactions-changed'))
+    await act(async () => {
+      resolveNewer({ habits: [{ ...habits[0], title: 'Newest habit' }] })
+    })
+    await act(async () => {
+      resolveOlder({ habits: [{ ...habits[0], title: 'Outdated habit' }] })
+    })
+
+    expect(screen.getByRole('heading', { name: 'Newest habit' })).toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: 'Outdated habit' })).not.toBeInTheDocument()
+  })
+
+  it('shows an all-hidden state instead of claiming there is insufficient history', async () => {
+    const generateHabits = vi.fn().mockResolvedValue({ habits })
+    const user = userEvent.setup()
+    render(<SpendingHabitsPage generateHabits={generateHabits} onBack={() => {}} />)
+
+    await screen.findByRole('heading', { name: 'Weekend treats' })
+    await user.click(screen.getByRole('button', { name: 'Dismiss Weekend treats' }))
+    await user.click(screen.getByRole('button', { name: 'Don’t show again' }))
+
+    expect(screen.getByRole('heading', { name: 'No habits to show right now' })).toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: 'Not enough spending history yet' })).not.toBeInTheDocument()
+  })
+
 })
