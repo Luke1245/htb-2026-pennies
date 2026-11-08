@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useAuth0 } from '@auth0/auth0-react'
 import './dashboard.css'
+import { AddAccount } from './AddAccount.jsx'
 import { AddTransaction } from './AddTransaction.jsx'
 import { apiUrl, authHeaders } from './api.js'
 import { GuideCards, GuideView } from './Guides.jsx'
@@ -8,6 +9,7 @@ import { useGuideRoute } from './useGuideRoute.js'
 import { guides } from './guides.js'
 
 const recordedMessage = 'Transaction recorded'
+const accountRecordedMessage = 'Account recorded'
 const loadMessage = 'Pennies could not load your records'
 
 function greetingFor(date) {
@@ -49,6 +51,7 @@ export default function Dashboard({ onViewSpendingHabits, onViewRecommendations 
   const [status, setStatus] = useState('')
   const [accounts, setAccounts] = useState([])
   const [formOpen, setFormOpen] = useState(false)
+  const [accountFormOpen, setAccountFormOpen] = useState(false)
   const [reloadKey, setReloadKey] = useState(0)
   const [recommendedGuideIds, setRecommendedGuideIds] = useState([])
   const recorded = useRef(false)
@@ -100,8 +103,25 @@ export default function Dashboard({ onViewSpendingHabits, onViewRecommendations 
     }
   }, [getAccessTokenSilently, reloadKey])
 
+  function openAccountForm() {
+    if (accountFormOpen) return
+    setFormOpen(false)
+    setStatus('')
+    setAccountFormOpen(true)
+  }
+
+  function closeAccountForm() {
+    setAccountFormOpen(false)
+  }
+
+  function handleAccountRecorded() {
+    setAccountFormOpen(false)
+    setStatus(accountRecordedMessage)
+  }
+
   async function openForm() {
     if (formOpen) return
+    setAccountFormOpen(false)
     try {
       const headers = await authHeaders(getAccessTokenSilently)
       const response = await fetch(`${apiUrl}/accounts`, { headers })
@@ -219,13 +239,29 @@ export default function Dashboard({ onViewSpendingHabits, onViewRecommendations 
                   </a>
                 </section>
                 <section className="tile">
-                  {!formOpen && (
+                  {!formOpen && !accountFormOpen && (
                     <div className="tile-heading">
                       <h2>Recent transactions</h2>
-                      <button type="button" className="add-transaction" onClick={openForm}>
-                        Add transaction
-                      </button>
+                      <div className="tile-actions">
+                        <button
+                          type="button"
+                          className="add-account"
+                          onClick={openAccountForm}
+                        >
+                          Add account
+                        </button>
+                        <button type="button" className="add-transaction" onClick={openForm}>
+                          Add transaction
+                        </button>
+                      </div>
                     </div>
+                  )}
+                  {accountFormOpen && (
+                    <AddAccount
+                      getAccessTokenSilently={getAccessTokenSilently}
+                      onRecorded={handleAccountRecorded}
+                      onCancel={closeAccountForm}
+                    />
                   )}
                   {formOpen && (
                     <AddTransaction
@@ -271,6 +307,7 @@ export default function Dashboard({ onViewSpendingHabits, onViewRecommendations 
               recommendedIds={recommendedGuideIds}
               onSelect={(guide) => {
                 setFormOpen(false)
+                setAccountFormOpen(false)
                 openGuide(guide)
               }}
             />

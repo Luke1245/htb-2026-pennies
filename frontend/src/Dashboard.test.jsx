@@ -186,6 +186,35 @@ test('an Account is required before the form opens', async () => {
   expect(screen.queryByLabelText('Vendor')).not.toBeInTheDocument()
 })
 
+test('user records an Account from beside Add transaction', async () => {
+  const user = userEvent.setup()
+  const calls = renderRecords((call) => {
+    if (call.url.endsWith('/accounts') && call.options.method === 'POST') {
+      return ok({ id: 'acc-1', name: 'Cash', opening_balance: '40.00', calculated_balance: '40.00' })
+    }
+    if (call.url.includes('/transactions')) return ok({ transactions: [] })
+    return ok({ spent_this_month: '0.00', left_to_spend: '0.00', categories: [] })
+  })
+
+  expect(await screen.findByRole('button', { name: 'Add transaction' })).toBeInTheDocument()
+  await user.click(screen.getByRole('button', { name: 'Add account' }))
+  await user.type(screen.getByLabelText('Name'), 'Cash')
+  await user.clear(screen.getByLabelText('Opening balance'))
+  await user.type(screen.getByLabelText('Opening balance'), '40')
+  await user.click(screen.getByRole('button', { name: 'Add account' }))
+
+  expect(await screen.findByText('Account recorded')).toBeInTheDocument()
+  expect(screen.getByRole('button', { name: 'Add transaction' })).toBeInTheDocument()
+  expect(screen.queryByLabelText('Name')).not.toBeInTheDocument()
+
+  const post = calls.find((call) => call.options.method === 'POST')
+  expect(JSON.parse(post.options.body)).toEqual({
+    name: 'Cash',
+    opening_balance: '40.00',
+  })
+  expect(post.options.headers.Authorization).toBe('Bearer test-token')
+})
+
 test('a failed Account load keeps the form closed', async () => {
   const user = userEvent.setup()
   renderRecords((call) => {
