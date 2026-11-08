@@ -1,9 +1,14 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useAuth0 } from '@auth0/auth0-react'
 import './dashboard.css'
+import { AddTransaction } from './AddTransaction.jsx'
+import { apiUrl, authHeaders } from './api.js'
 import { GuideCards, GuideView } from './Guides.jsx'
+import { useGuideRoute } from './useGuideRoute.js'
+import { guides } from './guides.js'
 
-const apiUrl = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000'
+const recordedMessage = 'Transaction recorded'
+const loadMessage = 'Pennies could not load your records'
 
 function greetingFor(date) {
   const hour = date.getHours()
@@ -44,77 +49,86 @@ async function api(path, token, options = {}) {
   })
   const body = await response.json().catch(() => ({}))
   if (!response.ok) {
-    throw new Error(body.detail || 'Pennies could not load your records')
+    throw new Error(body.detail || loadMessage)
   }
   return body
 }
 
 export default function Dashboard() {
   const { user, logout, getAccessTokenSilently } = useAuth0()
-  const [selectedGuide, setSelectedGuide] = useState(null)
+  const { selectedGuide, openGuide, closeGuide } = useGuideRoute()
   const greeting = greetingFor(new Date())
   const name = user?.given_name || user?.name || 'Elodie'
   const [figures, setFigures] = useState(null)
   const [transactions, setTransactions] = useState([])
-  const [guideList, setGuideList] = useState([])
   const [sharingMode, setSharingMode] = useState('raw')
   const [portrait, setPortrait] = useState(null)
   const [readingPending, setReadingPending] = useState(false)
   const [readingNote, setReadingNote] = useState('')
-  const [error, setError] = useState('')
+  const [status, setStatus] = useState('')
+  const [accounts, setAccounts] = useState([])
+  const [formOpen, setFormOpen] = useState(false)
+  const [reloadKey, setReloadKey] = useState(0)
+  const recorded = useRef(false)
 
   useEffect(() => {
+    const afterRecord = recorded.current
     let cancelled = false
 
     async function load() {
       try {
-        const audience = import.meta.env.VITE_AUTH0_AUDIENCE
-        const token = await getAccessTokenSilently({
-          authorizationParams: audience ? { audience } : undefined,
-        })
-        const headers = { Authorization: `Bearer ${token}` }
-        const [dashboardResponse, transactionResponse, guideResponse, sharingResponse, readingResponse] =
-          await Promise.all([
-            fetch(`${apiUrl}/dashboard`, { headers }),
-            fetch(`${apiUrl}/transactions?limit=20`, { headers }),
-            fetch(`${apiUrl}/guides`, { headers }),
-            fetch(`${apiUrl}/sharing-mode`, { headers }),
-            fetch(`${apiUrl}/reading`, { headers }),
-          ])
-        if (!dashboardResponse.ok || !transactionResponse.ok || !guideResponse.ok) {
-          throw new Error('Pennies could not load your records')
+        const headers = await authHeaders(getAccessTokenSilently)
+        const [dashboardResponse, transactionResponse] = await Promise.all([
+          fetch(`${apiUrl}/dashboard`, { headers }),
+          fetch(`${apiUrl}/transactions?limit=20`, { headers }),
+        ])
+        if (!dashboardResponse.ok || !transactionResponse.ok) {
+          throw new Error(loadMessage)
         }
         const dashboard = await dashboardResponse.json()
         const page = await transactionResponse.json()
-        const guides = await guideResponse.json()
-        const sharing = sharingResponse.ok ? await sharingResponse.json() : { mode: 'raw' }
-        const reading = readingResponse.ok ? await readingResponse.json() : { reading: null }
         if (cancelled) return
         setFigures(dashboard)
         setTransactions(page.transactions)
-        setGuideList(guides)
-        setSharingMode(sharing.mode)
+        await loadReading(headers, page.transactions, dashboard)
+      } catch {
+        if (!cancelled) {
+          setStatus(afterRecord ? `${recordedMessage}. ${loadMessage}` : loadMessage)
+        }
+      }
+    }
+
+    async function loadReading(headers, pageTransactions, dashboard) {
+      setReadingPending(true)
+      try {
+        const token = headers.Authorization.replace('Bearer ', '')
+        const [sharingResponse, readingResponse] = await Promise.all([
+          fetch(`${apiUrl}/sharing-mode`, { headers }),
+          fetch(`${apiUrl}/reading`, { headers }),
+        ])
+        if (cancelled) return
+        const sharing = sharingResponse.ok ? await sharingResponse.json() : { mode: 'raw' }
+        const reading = readingResponse.ok ? await readingResponse.json() : { reading: null }
+        setSharingMode(sharing.mode || 'raw')
         setPortrait(reading.reading)
         const hasHistory =
-          page.transactions.some((transaction) => transaction.kind === 'ordinary') ||
+          pageTransactions.some((transaction) => transaction.kind === 'ordinary') ||
           Number(dashboard.subscriptions) > 0
-        if (hasHistory && !reading.reading) {
-          setReadingPending(true)
-          const updated = await api('/reading', token, { method: 'POST' })
-          if (cancelled) return
-          setPortrait(updated.reading)
-          setSharingMode(updated.sharing_mode)
-          if (!updated.updated) setReadingNote('Pennies could not update your reading.')
-          const [refreshedDashboard, refreshedTransactions] = await Promise.all([
-            api('/dashboard', token),
-            api('/transactions?limit=20', token),
-          ])
-          if (cancelled) return
-          setFigures(refreshedDashboard)
-          setTransactions(refreshedTransactions.transactions)
-        }
+        if (!hasHistory || reading.reading) return
+        const updated = await api('/reading', token, { method: 'POST' })
+        if (cancelled) return
+        setPortrait(updated.reading)
+        setSharingMode(updated.sharing_mode)
+        if (!updated.updated) setReadingNote('Pennies could not update your reading.')
+        const [refreshedDashboard, refreshedTransactions] = await Promise.all([
+          api('/dashboard', token),
+          api('/transactions?limit=20', token),
+        ])
+        if (cancelled) return
+        setFigures(refreshedDashboard)
+        setTransactions(refreshedTransactions.transactions)
       } catch {
-        if (!cancelled) setError('Pennies could not load your records')
+        if (!cancelled) setReadingNote('Pennies could not update your reading.')
       } finally {
         if (!cancelled) setReadingPending(false)
       }
@@ -124,16 +138,46 @@ export default function Dashboard() {
     return () => {
       cancelled = true
     }
-  }, [getAccessTokenSilently])
+  }, [getAccessTokenSilently, reloadKey])
+
+  async function openForm() {
+    if (formOpen) return
+    try {
+      const headers = await authHeaders(getAccessTokenSilently)
+      const response = await fetch(`${apiUrl}/accounts`, { headers })
+      if (!response.ok) throw new Error(loadMessage)
+      const list = await response.json()
+      if (list.length === 0) {
+        setFormOpen(false)
+        setStatus('An Account is needed.')
+        return
+      }
+      recorded.current = false
+      setAccounts(list)
+      setStatus('')
+      setFormOpen(true)
+    } catch {
+      setFormOpen(false)
+      setStatus(loadMessage)
+    }
+  }
+
+  function closeForm() {
+    setFormOpen(false)
+  }
+
+  function handleRecorded() {
+    recorded.current = true
+    setFormOpen(false)
+    setStatus(recordedMessage)
+    setReloadKey((key) => key + 1)
+  }
 
   async function onSharingMode(mode) {
     if (mode === sharingMode) return
     try {
-      const audience = import.meta.env.VITE_AUTH0_AUDIENCE
-      const token = await getAccessTokenSilently({
-        authorizationParams: audience ? { audience } : undefined,
-      })
-      const saved = await api('/sharing-mode', token, {
+      const headers = await authHeaders(getAccessTokenSilently)
+      const saved = await api('/sharing-mode', headers.Authorization.replace('Bearer ', ''), {
         method: 'PUT',
         body: JSON.stringify({ mode }),
       })
@@ -141,7 +185,9 @@ export default function Dashboard() {
       setPortrait(null)
       setReadingPending(true)
       setReadingNote('')
-      const updated = await api('/reading', token, { method: 'POST' })
+      const updated = await api('/reading', headers.Authorization.replace('Bearer ', ''), {
+        method: 'POST',
+      })
       setPortrait(updated.reading)
       if (!updated.updated && !updated.reading) {
         setReadingNote('Pennies could not update your reading.')
@@ -190,14 +236,14 @@ export default function Dashboard() {
       </header>
       <main className="dashboard-main">
         {selectedGuide ? (
-          <GuideView guide={selectedGuide} onBack={() => setSelectedGuide(null)} />
+          <GuideView guide={selectedGuide} onBack={closeGuide} />
         ) : (
           <>
             <p className="greeting">
               {greeting}, {name}
             </p>
-            {error && <p className="status">{error}</p>}
-            {!error && !figures && <p className="status">Loading…</p>}
+            {status && <p className="status">{status}</p>}
+            {!status && !figures && <p className="status">Loading…</p>}
             {figures && (
               <div className="tiles">
                 <section className="tile wide">
@@ -252,16 +298,51 @@ export default function Dashboard() {
                   ) : (
                     <ul className="bars">
                       {figures.categories.map((category) => (
-                        <Bar key={category.name} label={category.name} amount={category.amount} largest={largest} />
+                        <li key={category.name}>
+                          <span>{category.name}</span>
+                          <span className="bar" aria-hidden="true">
+                            <span
+                              style={{
+                                width: `${largest ? (Number(category.amount) / largest) * 100 : 0}%`,
+                              }}
+                            />
+                          </span>
+                          <span>{pounds(category.amount)}</span>
+                        </li>
                       ))}
                       {subscriptionTotal > 0 && (
-                        <Bar label="Subscriptions" amount={figures.subscriptions} largest={largest} />
+                        <li>
+                          <span>Subscriptions</span>
+                          <span className="bar" aria-hidden="true">
+                            <span
+                              style={{
+                                width: `${largest ? (subscriptionTotal / largest) * 100 : 0}%`,
+                              }}
+                            />
+                          </span>
+                          <span>{pounds(figures.subscriptions)}</span>
+                        </li>
                       )}
                     </ul>
                   )}
                 </section>
                 <section className="tile">
-                  <h2>Recent transactions</h2>
+                  {!formOpen && (
+                    <div className="tile-heading">
+                      <h2>Recent transactions</h2>
+                      <button type="button" className="add-transaction" onClick={openForm}>
+                        Add transaction
+                      </button>
+                    </div>
+                  )}
+                  {formOpen && (
+                    <AddTransaction
+                      accounts={accounts}
+                      getAccessTokenSilently={getAccessTokenSilently}
+                      onRecorded={handleRecorded}
+                      onCancel={closeForm}
+                    />
+                  )}
                   {transactions.length === 0 ? (
                     <p className="status">No transactions yet</p>
                   ) : (
@@ -283,23 +364,17 @@ export default function Dashboard() {
                 </section>
               </div>
             )}
-            <GuideCards guides={guideList} onSelect={setSelectedGuide} />
+            <GuideCards
+              guides={guides}
+              onSelect={(guide) => {
+                setFormOpen(false)
+                openGuide(guide)
+              }}
+            />
           </>
         )}
       </main>
     </div>
-  )
-}
-
-function Bar({ label, amount, largest }) {
-  return (
-    <li>
-      <span>{label}</span>
-      <span className="bar" aria-hidden="true">
-        <span style={{ width: `${largest ? (Number(amount) / largest) * 100 : 0}%` }} />
-      </span>
-      <span>{pounds(amount)}</span>
-    </li>
   )
 }
 
