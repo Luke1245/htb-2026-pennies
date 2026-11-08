@@ -36,7 +36,7 @@ function renderDashboard({ reading = null, ...props } = {}) {
     }),
   )
 
-  return render(<Dashboard {...props} />)
+  return render(<Dashboard name="Elodie" {...props} />)
 }
 
 function json(body) {
@@ -168,7 +168,7 @@ function renderRecords(handler) {
       return handler(call)
     }),
   )
-  render(<Dashboard />)
+  render(<Dashboard name="Elodie" />)
   return calls
 }
 

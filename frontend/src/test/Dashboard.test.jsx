@@ -17,7 +17,7 @@ describe('Dashboard', () => {
     vi.stubGlobal('fetch', vi.fn()
       .mockResolvedValueOnce({ ok: true, json: async () => ({ spent_this_month: '10.00', left_to_spend: '20.00', categories: [] }) })
       .mockResolvedValueOnce({ ok: true, json: async () => ({ transactions: [] }) }))
-    render(<Dashboard onViewSpendingHabits={onViewSpendingHabits} />)
+    render(<Dashboard name="Alex" onViewSpendingHabits={onViewSpendingHabits} />)
 
     await userEvent.click(await screen.findByRole('link', { name: 'View spending habits' }))
 
