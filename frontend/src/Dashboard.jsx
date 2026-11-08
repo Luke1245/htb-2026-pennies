@@ -84,7 +84,10 @@ export default function Dashboard() {
         if (!response.ok) throw new Error(loadMessage)
         const body = await response.json()
         const recommended = (body.reading?.recommendations || [])
-          .filter((recommendation) => recommendation.kind === 'guide')
+          .filter(
+            (recommendation) =>
+              recommendation.kind === 'guide' && recommendation.guide_id !== 'budgeting-basics',
+          )
           .map((recommendation) => recommendation.guide_id)
         if (!cancelled) setRecommendedGuideIds(recommended)
       } catch {

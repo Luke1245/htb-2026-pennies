@@ -122,14 +122,24 @@ test('badges the guides named in the current portrait recommendations', async ()
         url: null,
         publisher: null,
       },
+      {
+        id: 'r2',
+        kind: 'guide',
+        guide_id: 'scam-avoidance',
+        resource_id: null,
+        reason: 'A strange payment needs a second look.',
+        title: 'Scam avoidance',
+        url: null,
+        publisher: null,
+      },
     ],
   }
   renderDashboard({ reading })
 
   const budgeting = await screen.findByRole('button', { name: /budgeting basics/i })
-  expect(within(budgeting).getByText('Recommended')).toBeInTheDocument()
+  expect(within(budgeting).queryByText('Recommended')).not.toBeInTheDocument()
   const scam = screen.getByRole('button', { name: /scam avoidance/i })
-  expect(within(scam).queryByText('Recommended')).not.toBeInTheDocument()
+  expect(within(scam).getByText('Recommended')).toBeInTheDocument()
 })
 
 test('links to the Recommendations screen', async () => {
@@ -434,6 +444,53 @@ test('guide opened directly from its URL closes to the dashboard, not away from 
 
   await expectBackOnDashboard('Scam avoidance')
   expect(router.state.location.pathname).toBe('/')
+})
+
+test('one recorded outflow shows up in spending insights', async () => {
+  useAuth0.mockReturnValue({
+    user: { given_name: 'Elodie' },
+    logout: vi.fn(),
+    getAccessTokenSilently: vi.fn().mockResolvedValue('test-token'),
+  })
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(async (url) => {
+      const path = String(url)
+      if (path.includes('/dashboard')) {
+        return json({
+          spent_this_month: '6.00',
+          left_to_spend: '0.00',
+          monthly_budget: null,
+          categories: [{ name: 'Groceries', amount: '6.00' }],
+          subscriptions: '0.00',
+        })
+      }
+      if (path.includes('/transactions')) {
+        return json({
+          transactions: [
+            {
+              id: 'tx-1',
+              vendor: 'Tesco',
+              category: 'Groceries',
+              occurred_at: '2026-11-08T00:00:00+00:00',
+              amount: '-6.00',
+            },
+          ],
+        })
+      }
+      if (path.includes('/reading')) return json({ sharing_mode: 'raw', updated: false, reading: null })
+      return json({})
+    }),
+  )
+  renderAt('/')
+
+  const insights = await screen.findByRole('heading', { name: 'Spending insights' })
+  const tile = insights.closest('section')
+  expect(within(tile).getByText('Groceries')).toBeInTheDocument()
+  expect(within(tile).getByText('£6.00')).toBeInTheDocument()
+  expect(within(tile).queryByText(/went to/)).not.toBeInTheDocument()
+  expect(screen.getByText('Tesco')).toBeInTheDocument()
+  expect(screen.queryByText('No spending this month')).not.toBeInTheDocument()
 })
 
 test('opening a guide URL shows that guide', async () => {
