@@ -19,6 +19,7 @@ function renderAt(path) {
       { path: '/spending-habits', element: <h2>Spending habits</h2> },
       { path: '/recommendations', element: <h2>Recommendations</h2> },
       { path: '/accounts', element: <h2>Accounts</h2> },
+      { path: '/transactions', element: <h2>Transactions</h2> },
     ],
     { initialEntries: [path] },
   )
@@ -459,6 +460,114 @@ test('guide opened directly from its URL closes to the dashboard, not away from 
 
   await expectBackOnDashboard('Scam avoidance')
   expect(router.state.location.pathname).toBe('/')
+})
+
+test('recent transactions shows three entries and opens the transactions screen', async () => {
+  const user = userEvent.setup()
+  useAuth0.mockReturnValue({
+    user: { given_name: 'Elodie' },
+    logout: vi.fn(),
+    getAccessTokenSilently: vi.fn().mockResolvedValue('test-token'),
+  })
+  const calls = []
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(async (url) => {
+      const path = String(url)
+      calls.push(path)
+      if (path.includes('/dashboard')) {
+        return json({
+          spent_this_month: '0.00',
+          left_to_spend: '0.00',
+          monthly_budget: null,
+          categories: [],
+          subscriptions: '0.00',
+        })
+      }
+      if (path.includes('/transactions')) {
+        return json({
+          transactions: ['Tesco', 'Pret', 'Cafe', 'Old shop'].map((vendor, index) => ({
+            id: `tx-${index}`,
+            vendor,
+            category: 'Groceries',
+            occurred_at: '2026-11-08T00:00:00+00:00',
+            amount: '-1.00',
+          })),
+        })
+      }
+      if (path.includes('/reading')) return json({ sharing_mode: 'raw', updated: false, reading: null })
+      return json({})
+    }),
+  )
+  const router = renderAt('/')
+
+  expect(await screen.findByText('Tesco')).toBeInTheDocument()
+  expect(screen.getByText('Pret')).toBeInTheDocument()
+  expect(screen.getByText('Cafe')).toBeInTheDocument()
+  expect(screen.queryByText('Old shop')).not.toBeInTheDocument()
+  expect(calls.some((path) => path.includes('/transactions?limit=3'))).toBe(true)
+
+  await user.click(screen.getByRole('link', { name: 'View all transactions' }))
+  expect(router.state.location.pathname).toBe('/transactions')
+  expect(screen.getByRole('heading', { name: 'Transactions' })).toBeInTheDocument()
+})
+
+test('a recent transaction can be deleted', async () => {
+  const user = userEvent.setup()
+  useAuth0.mockReturnValue({
+    user: { given_name: 'Elodie' },
+    logout: vi.fn(),
+    getAccessTokenSilently: vi.fn().mockResolvedValue('test-token'),
+  })
+  const calls = []
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(async (url, options = {}) => {
+      const path = String(url)
+      calls.push({ path, method: options.method })
+      if (options.method === 'DELETE') return json({ deleted: true, ids: ['tx-1'] })
+      if (path.includes('/dashboard')) {
+        return json({
+          spent_this_month: '0.00',
+          left_to_spend: '40.00',
+          monthly_budget: null,
+          categories: [],
+          subscriptions: '0.00',
+        })
+      }
+      if (path.includes('/transactions')) {
+        const hidden = calls.some((call) => call.method === 'DELETE')
+        return json({
+          transactions: [
+            {
+              id: 'tx-1',
+              vendor: 'Tesco',
+              category: 'Groceries',
+              occurred_at: '2026-11-08T00:00:00+00:00',
+              amount: '-6.00',
+            },
+            {
+              id: 'tx-2',
+              vendor: 'Pret',
+              category: 'Eating out',
+              occurred_at: '2026-11-08T00:00:00+00:00',
+              amount: '-3.00',
+            },
+          ].filter((transaction) => !(hidden && transaction.id === 'tx-1')),
+        })
+      }
+      if (path.includes('/reading')) return json({ sharing_mode: 'raw', updated: false, reading: null })
+      return json({})
+    }),
+  )
+  renderAt('/')
+
+  expect(await screen.findByText('Tesco')).toBeInTheDocument()
+  await user.click(screen.getByRole('button', { name: 'Delete Tesco' }))
+
+  expect(calls.some((call) => call.method === 'DELETE' && call.path.includes('/transactions/tx-1'))).toBe(true)
+  expect(screen.queryByText('Tesco')).not.toBeInTheDocument()
+  expect(screen.getByText('Pret')).toBeInTheDocument()
 })
 
 test('one recorded outflow shows up in spending insights', async () => {

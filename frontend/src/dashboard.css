@@ -436,6 +436,31 @@
   grid-template-columns: 96px 1fr auto;
 }
 
+.transactions li {
+  grid-template-columns: 1fr auto auto;
+}
+
+.delete-transaction {
+  font: inherit;
+  font-size: 14px;
+  padding: 4px 10px;
+  border-radius: 6px;
+  color: #112114;
+  background: #fff;
+  border: 1px solid #487853;
+  cursor: pointer;
+}
+
+.delete-transaction:disabled {
+  cursor: default;
+  opacity: 0.7;
+}
+
+.delete-transaction:focus-visible {
+  outline: 3px solid #487853;
+  outline-offset: 3px;
+}
+
 .bar {
   display: block;
   height: 8px;

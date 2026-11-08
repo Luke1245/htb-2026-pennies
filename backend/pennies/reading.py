@@ -385,6 +385,10 @@ def _clean_lines(lines: list[str]) -> list[str]:
     return cleaned
 
 
+def discard_reading(db: Session, user_sub: str) -> None:
+    _delete_portrait(db, user_sub)
+
+
 def _delete_portrait(db: Session, user_sub: str) -> None:
     portrait = db.scalar(select(Portrait).where(Portrait.user_sub == user_sub))
     if portrait is None:

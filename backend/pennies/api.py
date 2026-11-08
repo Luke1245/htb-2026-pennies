@@ -22,6 +22,7 @@ from pennies.ledger import (
     create_account,
     create_transaction,
     create_transfer,
+    delete_transaction,
     list_accounts,
     list_transactions,
     update_account,
@@ -34,6 +35,7 @@ from pennies.reading import (
     assigned_category,
     build_reading,
     current_reading,
+    discard_reading,
     set_sharing_mode,
     sharing_mode,
     transaction_facts,
@@ -245,6 +247,16 @@ def create_app(database_url: str | None = None, clock=None, reader=None) -> Fast
         user_sub: str = Depends(get_current_user),
     ):
         return update_category(db, user_sub, transaction_id, body.category)
+
+    @app.delete("/transactions/{transaction_id}")
+    def remove_transaction(
+        transaction_id: UUID,
+        db=Depends(get_db),
+        user_sub: str = Depends(get_current_user),
+    ):
+        removed = delete_transaction(db, user_sub, transaction_id)
+        discard_reading(db, user_sub)
+        return {"deleted": True, "ids": removed}
 
     @app.post("/transfers", response_model=TransferOut)
     def post_transfer(

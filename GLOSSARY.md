@@ -29,7 +29,7 @@ The total of ordinary outflows in the current Calendar month, plus logged Subscr
 The current Calendar month's ordinary outflows grouped by Category, shown beside the total of logged Subscriptions for that month.
 
 **Transfer**:
-Two linked Transactions representing money moved between the user's own Accounts: an outflow from the source and an inflow to the destination, neither counted as spending.
+Two linked Transactions representing money moved between the user's own Accounts: an outflow from the source and an inflow to the destination, neither counted as spending. Removing either Transaction removes both.
 
 **Adjustment**:
 A Transaction in the reserved Adjustment Category that corrects an Account's calculated balance to match its real balance.
