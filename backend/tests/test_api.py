@@ -228,10 +228,6 @@ def test_rejects_invalid_transactions_and_limits_edits():
     assert edited.json()["category"] == "Groceries"
     rejected = client.patch(f"/transactions/{transaction_id}", json={"category": "Adjustment"})
     assert rejected.status_code == 422
-    forbidden = client.patch(
-        f"/transactions/{transaction_id}", json={"category": "Other", "amount": "-2.00"}
-    )
-    assert forbidden.status_code == 422
 
     same_account = client.post(
         "/transfers",
@@ -292,6 +288,160 @@ def test_transactions_can_be_read_past_the_first_page():
     second = client.get("/transactions?limit=2&offset=2")
     assert len(second.json()["transactions"]) == 1
     assert second.json()["next_offset"] is None
+
+
+def test_transactions_can_be_filtered_by_account():
+    client, holder = make_client()
+    cash = account(client, "Cash")
+    bank = account(client, "Bank")
+    for name, target, day in (("Tesco", cash, 1), ("Employer", bank, 2), ("Sainsbury", cash, 3)):
+        created = client.post(
+            "/transactions",
+            json={
+                "account_id": target["id"],
+                "amount": "-1.00",
+                "vendor": name,
+                "occurred_at": f"2026-11-0{day}T10:00:00+00:00",
+            },
+        )
+        assert created.status_code == 200, created.text
+
+    filtered = client.get(f"/transactions?account_id={cash['id']}")
+    assert filtered.status_code == 200, filtered.text
+    vendors = [item["vendor"] for item in filtered.json()["transactions"]]
+    assert vendors == ["Sainsbury", "Tesco"]
+
+    foreign = account(client, "Elsewhere")
+    holder["sub"] = "user-b"
+    stolen = client.get(f"/transactions?account_id={foreign['id']}")
+    assert stolen.status_code == 404
+
+
+def test_ordinary_transaction_fields_can_be_edited():
+    client, holder = make_client()
+    cash = account(client, "Cash", "40.00")
+    bank = account(client, "Bank", "10.00")
+    recorded = client.post(
+        "/transactions",
+        json={
+            "account_id": cash["id"],
+            "amount": "-6.00",
+            "vendor": "Tesco",
+            "occurred_at": "2026-11-02T10:00:00+00:00",
+        },
+    )
+    assert recorded.status_code == 200, recorded.text
+    transaction_id = recorded.json()["id"]
+
+    edited = client.patch(
+        f"/transactions/{transaction_id}",
+        json={
+            "vendor": "Sainsbury",
+            "amount": "7.50",
+            "account_id": bank["id"],
+            "note": "weekly shop",
+            "occurred_at": "2026-11-03T11:00:00+00:00",
+        },
+    )
+    assert edited.status_code == 200, edited.text
+    body = edited.json()
+    assert body["vendor"] == "Sainsbury"
+    assert body["amount"] == "7.50"
+    assert body["account_id"] == bank["id"]
+    assert body["note"] == "weekly shop"
+    assert body["occurred_at"] == "2026-11-03T11:00:00Z"
+
+    balances = {item["name"]: item["calculated_balance"] for item in client.get("/accounts").json()}
+    assert balances["Cash"] == "40.00"
+    assert balances["Bank"] == "17.50"
+
+    zero = client.patch(f"/transactions/{transaction_id}", json={"amount": "0.00"})
+    assert zero.status_code == 422
+    cleared = client.patch(f"/transactions/{transaction_id}", json={"note": None})
+    assert cleared.status_code == 200, cleared.text
+    assert cleared.json()["note"] is None
+    holder["sub"] = "user-b"
+    taken = client.patch(f"/transactions/{transaction_id}", json={"account_id": bank["id"]})
+    assert taken.status_code == 404
+
+
+def test_transfer_edits_mirror_amount_and_date():
+    client, _holder = make_client()
+    cash = account(client, "Cash", "40.00")
+    bank = account(client, "Bank", "10.00")
+    pot = account(client, "Pot", "5.00")
+    transfer = client.post(
+        "/transfers",
+        json={
+            "from_account_id": cash["id"],
+            "to_account_id": bank["id"],
+            "amount": "12.00",
+            "occurred_at": "2026-11-02T10:00:00+00:00",
+            "note": "move",
+        },
+    )
+    assert transfer.status_code == 200, transfer.text
+    outflow = transfer.json()["outflow"]
+
+    mirrored = client.patch(
+        f"/transactions/{outflow['id']}",
+        json={"amount": "20.00", "occurred_at": "2026-11-05T10:00:00+00:00"},
+    )
+    assert mirrored.status_code == 200, mirrored.text
+    pair = {
+        item["id"]: item
+        for item in client.get("/transactions").json()["transactions"]
+        if item["transfer_id"] == outflow["transfer_id"]
+    }
+    assert len(pair) == 2
+    for leg in pair.values():
+        assert leg["occurred_at"] == "2026-11-05T10:00:00"
+    assert sorted(leg["amount"] for leg in pair.values()) == ["-20.00", "20.00"]
+
+    moved = client.patch(
+        f"/transactions/{outflow['id']}", json={"account_id": pot["id"]}
+    )
+    assert moved.status_code == 200, moved.text
+    pair = {
+        item["id"]: item
+        for item in client.get("/transactions").json()["transactions"]
+        if item["transfer_id"] == outflow["transfer_id"]
+    }
+    accounts = {leg["account_id"] for leg in pair.values()}
+    assert accounts == {pot["id"], bank["id"]}
+
+    same = client.patch(
+        f"/transactions/{outflow['id']}", json={"account_id": bank["id"]}
+    )
+    assert same.status_code == 422
+
+    vendor = client.patch(f"/transactions/{outflow['id']}", json={"vendor": "Shop"})
+    assert vendor.status_code == 422
+    category = client.patch(f"/transactions/{outflow['id']}", json={"category": "Groceries"})
+    assert category.status_code == 422
+
+
+def test_adjustments_cannot_be_edited():
+    client, _holder = make_client()
+    cash = account(client, "Cash", "40.00")
+    recorded = client.post(
+        "/transactions",
+        json={
+            "account_id": cash["id"],
+            "amount": "-6.00",
+            "vendor": "Tesco",
+            "occurred_at": "2026-11-02T10:00:00+00:00",
+        },
+    )
+    assert recorded.status_code == 200, recorded.text
+    client.post(f"/accounts/{cash['id']}/reconciliations", json={"real_balance": "30.00"})
+    adjustment = next(
+        item
+        for item in client.get("/transactions").json()["transactions"]
+        if item["kind"] == "adjustment"
+    )
+    edited = client.patch(f"/transactions/{adjustment['id']}", json={"note": "x"})
+    assert edited.status_code == 422
 
 
 def test_display_name_is_stored_for_the_signed_in_user():

@@ -22,6 +22,9 @@ Money paid out by the user, represented by a negative Transaction amount.
 **Account**:
 A user-owned place money is held, such as cash or a bank account, without an external connection or synchronised balance.
 
+**Calculated balance**:
+An Account's opening balance plus the sum of all its Transaction amounts, in either direction, so Adjustments and Transfers are included. Shown beside each Account name wherever accounts are listed.
+
 **Spent this month**:
 The total of ordinary outflows in the current Calendar month, plus logged Subscriptions for that month, without subtracting inflows. Transfers and Adjustments are excluded.
 

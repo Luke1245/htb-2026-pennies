@@ -110,7 +110,12 @@ class CategorySuggestionOut(ApiModel):
 
 
 class TransactionPatch(ApiModel):
-    category: RequiredText
+    account_id: UUID | None = None
+    amount: Money | None = None
+    category: OptionalText = None
+    vendor: OptionalText = Field(None, max_length=120)
+    note: OptionalText = None
+    occurred_at: datetime | None = None
 
 
 class TransactionOut(ApiModel):

@@ -116,16 +116,19 @@ def create_transaction(
 
 
 def list_transactions(
-    db: Session, user_sub: str, limit: int, offset: int
+    db: Session, user_sub: str, limit: int, offset: int, account_id: uuid.UUID | None = None
 ) -> tuple[list[Transaction], int | None]:
     if limit < 1 or limit > 100:
         raise DomainError("Limit must be from 1 to 100")
     if offset < 0:
         raise DomainError("Offset must be zero or greater")
+    where = [Transaction.user_sub == user_sub]
+    if account_id is not None:
+        where.append(Transaction.account_id == owned_account(db, user_sub, account_id).id)
     rows = list(
         db.scalars(
             select(Transaction)
-            .where(Transaction.user_sub == user_sub)
+            .where(*where)
             .order_by(Transaction.occurred_at.desc(), Transaction.id.desc())
             .offset(offset)
             .limit(limit + 1)
@@ -158,19 +161,91 @@ def delete_transaction(db: Session, user_sub: str, transaction_id: uuid.UUID) ->
     return removed
 
 
-def update_category(
-    db: Session, user_sub: str, transaction_id: uuid.UUID, category: str
+class _UnsetType:
+    pass
+
+
+UNSET = _UnsetType()
+
+
+@dataclass(frozen=True)
+class TransactionEdit:
+    account_id: uuid.UUID | None = None
+    amount: Decimal | None = None
+    category: str | None = None
+    vendor: str | None = None
+    note: str | None | _UnsetType = UNSET
+    occurred_at: datetime | None = None
+
+
+def update_transaction(
+    db: Session, user_sub: str, transaction_id: uuid.UUID, edit: TransactionEdit
 ) -> Transaction:
     transaction = db.get(Transaction, transaction_id)
     if transaction is None or transaction.user_sub != user_sub:
         raise DomainError("Transaction not found", status_code=404)
-    if transaction.kind is not TransactionKind.ordinary:
-        raise DomainError("Only an ordinary transaction's category can be changed")
-    require_ordinary_category(category)
-    transaction.category = category
-    transaction.category_source = "user"
+    if transaction.kind is TransactionKind.adjustment:
+        raise DomainError("An adjustment cannot be edited")
+    if transaction.kind is TransactionKind.transfer:
+        return _update_transfer_leg(db, user_sub, transaction, edit)
+
+    if edit.account_id is not None:
+        transaction.account_id = owned_account(db, user_sub, edit.account_id).id
+    if edit.amount is not None:
+        if edit.amount == 0:
+            raise DomainError("Amount must not be zero")
+        transaction.amount = edit.amount
+    if edit.category is not None:
+        if edit.category.casefold() == ADJUSTMENT_CATEGORY.casefold():
+            raise DomainError("Category must be one of the user's categories")
+        require_ordinary_category(edit.category)
+        transaction.category = edit.category
+        transaction.category_source = "user"
+    if edit.vendor is not None:
+        transaction.vendor = edit.vendor
+    if edit.note is not UNSET:
+        transaction.note = edit.note or None
+    if edit.occurred_at is not None:
+        transaction.occurred_at = as_utc(edit.occurred_at)
     db.flush()
     return transaction
+
+
+def _update_transfer_leg(
+    db: Session, user_sub: str, leg: Transaction, edit: TransactionEdit
+) -> Transaction:
+    if edit.vendor is not None or edit.category is not None:
+        raise DomainError("A transfer's vendor and category cannot be changed")
+    if edit.account_id is not None:
+        leg.account_id = owned_account(db, user_sub, edit.account_id).id
+    if edit.note is not UNSET:
+        leg.note = edit.note or None
+    when = as_utc(edit.occurred_at) if edit.occurred_at is not None else None
+    if edit.amount is not None:
+        if edit.amount == 0:
+            raise DomainError("Amount must not be zero")
+        magnitude = abs(edit.amount)
+    else:
+        magnitude = None
+    twin = db.scalar(
+        select(Transaction).where(
+            Transaction.user_sub == user_sub,
+            Transaction.transfer_id == leg.transfer_id,
+            Transaction.id != leg.id,
+        )
+    )
+    if edit.amount is not None:
+        leg.amount = magnitude if leg.amount > 0 else -magnitude
+        if twin is not None:
+            twin.amount = -leg.amount
+    if when is not None:
+        leg.occurred_at = when
+        if twin is not None:
+            twin.occurred_at = when
+    if twin is not None and twin.account_id == leg.account_id:
+        raise DomainError("A transfer must use two different accounts")
+    db.flush()
+    return leg
 
 
 def create_transfer(

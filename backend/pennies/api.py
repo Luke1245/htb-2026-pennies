@@ -27,7 +27,9 @@ from pennies.ledger import (
     list_transactions,
     update_account,
     reconcile,
-    update_category,
+    TransactionEdit,
+    UNSET,
+    update_transaction,
 )
 from pennies.guides import list_guides
 from pennies.reading import (
@@ -234,10 +236,11 @@ def create_app(database_url: str | None = None, clock=None, reader=None) -> Fast
     def get_transactions(
         limit: int = 50,
         offset: int = 0,
+        account_id: UUID | None = None,
         db=Depends(get_db),
         user_sub: str = Depends(get_current_user),
     ):
-        transactions, next_offset = list_transactions(db, user_sub, limit, offset)
+        transactions, next_offset = list_transactions(db, user_sub, limit, offset, account_id)
         return {"transactions": transactions, "next_offset": next_offset}
 
     @app.patch("/transactions/{transaction_id}", response_model=TransactionOut)
@@ -247,7 +250,21 @@ def create_app(database_url: str | None = None, clock=None, reader=None) -> Fast
         db=Depends(get_db),
         user_sub: str = Depends(get_current_user),
     ):
-        return update_category(db, user_sub, transaction_id, body.category)
+        updated = update_transaction(
+            db,
+            user_sub,
+            transaction_id,
+            TransactionEdit(
+                account_id=body.account_id,
+                amount=body.amount,
+                category=body.category,
+                vendor=body.vendor,
+                note=body.note if "note" in body.model_fields_set else UNSET,
+                occurred_at=body.occurred_at,
+            ),
+        )
+        discard_reading(db, user_sub)
+        return updated
 
     @app.delete("/transactions/{transaction_id}")
     def remove_transaction(
