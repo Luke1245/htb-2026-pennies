@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react'
+import { fireEvent, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { useAuth0 } from '@auth0/auth0-react'
 import { expect, test, vi } from 'vitest'
@@ -9,7 +9,7 @@ vi.mock('@auth0/auth0-react', () => ({
   useAuth0: vi.fn(),
 }))
 
-function renderDashboard() {
+function renderDashboard({ reading = null, ...props } = {}) {
   useAuth0.mockReturnValue({
     user: { given_name: 'Elodie' },
     logout: vi.fn(),
@@ -31,12 +31,12 @@ function renderDashboard() {
       if (path.includes('/transactions')) return json({ transactions: [] })
       if (path.includes('/guides')) return json(guides)
       if (path.includes('/sharing-mode')) return json({ mode: 'raw' })
-      if (path.includes('/reading')) return json({ sharing_mode: 'raw', updated: false, reading: null })
+      if (path.includes('/reading')) return json({ sharing_mode: 'raw', updated: false, reading })
       return json({})
     }),
   )
 
-  return render(<Dashboard />)
+  return render(<Dashboard {...props} />)
 }
 
 function json(body) {
@@ -86,6 +86,44 @@ test('user can open the budgeting guide and return to the dashboard', async () =
   expect(
     screen.getByRole('heading', { name: 'Guides' }),
   ).toBeInTheDocument()
+})
+
+test('badges the guides named in the current portrait recommendations', async () => {
+  const reading = {
+    reading: 'Shops little and often.',
+    spending_habits: [],
+    projected_habits: [],
+    educations: [],
+    suggestions: [],
+    recommendations: [
+      {
+        id: 'r1',
+        kind: 'guide',
+        guide_id: 'budgeting-basics',
+        resource_id: null,
+        reason: 'The grocery shops need a budget.',
+        title: 'Budgeting basics',
+        url: null,
+        publisher: null,
+      },
+    ],
+  }
+  renderDashboard({ reading })
+
+  const budgeting = await screen.findByRole('button', { name: /budgeting basics/i })
+  expect(within(budgeting).getByText('Recommended')).toBeInTheDocument()
+  const scam = screen.getByRole('button', { name: /scam avoidance/i })
+  expect(within(scam).queryByText('Recommended')).not.toBeInTheDocument()
+})
+
+test('links to the Recommendations section', async () => {
+  const user = userEvent.setup()
+  const onViewRecommendations = vi.fn()
+  renderDashboard({ onViewRecommendations })
+
+  await user.click(await screen.findByRole('link', { name: /recommends for you/i }))
+
+  expect(onViewRecommendations).toHaveBeenCalled()
 })
 
 test('user can read long-term investing guidance and risk warnings', async () => {

@@ -19,6 +19,18 @@ const portrait = {
   projected_habits: [],
   educations: [],
   suggestions: [],
+  recommendations: [
+    {
+      id: 'r1',
+      kind: 'guide',
+      guide_id: 'budgeting-basics',
+      resource_id: null,
+      reason: 'The grocery shops need a budget.',
+      title: 'Budgeting basics',
+      url: null,
+      publisher: null,
+    },
+  ],
 }
 
 function json(body) {
@@ -46,8 +58,30 @@ describe('App', () => {
     await user.click(screen.getByRole('button', { name: '← Back to dashboard' }))
     await user.click(screen.getByRole('link', { name: 'View spending habits' }))
     expect(await screen.findByText('Friday takeaway is becoming the month.')).toBeInTheDocument()
+  })
 
-    const readingCalls = fetchMock.mock.calls.filter((call) => String(call[0]).includes('/reading'))
-    expect(readingCalls).toHaveLength(2)
+  it('opens Recommendations from the dashboard and a Guide pick opens the guide', async () => {
+    const user = userEvent.setup()
+    window.location.hash = ''
+    const fetchMock = vi.fn(async (url) => {
+      const path = String(url)
+      if (path.includes('/dashboard')) {
+        return json({ spent_this_month: '10.00', left_to_spend: '20.00', categories: [], subscriptions: '0.00' })
+      }
+      if (path.includes('/transactions')) return json({ transactions: [] })
+      if (path.includes('/sharing-mode')) return json({ mode: 'raw' })
+      if (path.includes('/reading')) return json({ sharing_mode: 'raw', updated: false, reading: portrait })
+      return json({})
+    })
+    vi.stubGlobal('fetch', fetchMock)
+    render(<App />)
+
+    await user.click(await screen.findByRole('link', { name: /recommends for you/i }))
+    expect(await screen.findByText('The grocery shops need a budget.')).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: /read guide/i }))
+
+    expect(await screen.findByRole('heading', { name: 'Budgeting basics', level: 1 })).toBeInTheDocument()
+    expect(window.location.hash).toBe('#guide/budgeting-basics')
   })
 })

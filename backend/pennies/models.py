@@ -129,3 +129,15 @@ class SuggestionItem(Base):
     portrait_id: Mapped[uuid.UUID] = mapped_column(Uuid, index=True)
     education_id: Mapped[uuid.UUID] = mapped_column(Uuid, index=True)
     body: Mapped[str] = mapped_column(Text)
+
+
+class RecommendationItem(Base):
+    __tablename__ = "recommendations"
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    portrait_id: Mapped[uuid.UUID] = mapped_column(Uuid, index=True)
+    position: Mapped[int]
+    kind: Mapped[str] = mapped_column(String(20))
+    guide_id: Mapped[str | None] = mapped_column(String(80), nullable=True)
+    resource_id: Mapped[str | None] = mapped_column(String(80), nullable=True)
+    reason: Mapped[str] = mapped_column(Text)
