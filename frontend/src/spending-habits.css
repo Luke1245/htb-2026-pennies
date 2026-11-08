@@ -93,12 +93,12 @@
   margin: 0 0 8px;
   white-space: pre-wrap;
   color: #112114;
-  font-size: 17px;
-  line-height: 1.6;
+  font-size: 15px;
+  line-height: 1.5;
 }
 
 .habit-section {
-  margin-top: 28px;
+  margin-top: 20px;
 }
 
 .habit-section > h3 {

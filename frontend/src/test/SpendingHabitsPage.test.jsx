@@ -1,3 +1,4 @@
+import { StrictMode } from 'react'
 import { act, fireEvent, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
@@ -30,6 +31,33 @@ describe('Spending habits page', () => {
     expect(loadPortrait).toHaveBeenCalledWith({ action: 'load' })
   })
 
+  it('stops the loading message when the lesson cannot be written', async () => {
+    const loadPortrait = vi.fn().mockRejectedValue(new Error('429'))
+    render(
+      <StrictMode>
+        <SpendingHabitsPage loadPortrait={loadPortrait} onBack={() => {}} />
+      </StrictMode>,
+    )
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Please try again')
+    expect(screen.queryByText('Finding your spending habits…')).not.toBeInTheDocument()
+  })
+
+  it('shows only the first two sentences of a long reading', async () => {
+    const loadPortrait = vi.fn().mockResolvedValue({
+      mode: 'raw',
+      portrait: {
+        ...portrait,
+        reading: 'Rent comes first. Lunches are the leak. The rest of this essay can wait. And so can this.',
+      },
+      updated: true,
+    })
+    render(<SpendingHabitsPage loadPortrait={loadPortrait} onBack={() => {}} />)
+
+    expect(await screen.findByText('Rent comes first. Lunches are the leak.')).toBeInTheDocument()
+    expect(screen.queryByText(/essay can wait/)).not.toBeInTheDocument()
+  })
+
   it('warns before changing sharing mode and asks for a new reading', async () => {
     const user = userEvent.setup()
     const loadPortrait = vi.fn()
@@ -44,11 +72,11 @@ describe('Spending habits page', () => {
     await screen.findByText('Friday takeaway is becoming the month.')
     await user.selectOptions(screen.getByLabelText('AI sharing mode'), 'sanitised')
 
-    expect(screen.getByRole('dialog')).toHaveTextContent('the current Financial portrait will be removed')
+    expect(screen.getByRole('dialog')).toHaveTextContent('this lesson will be removed')
     await user.click(screen.getByRole('button', { name: 'Change mode' }))
 
     expect(await screen.findByText('A less specific picture.')).toBeInTheDocument()
-    expect(screen.getByText(/Sanitised sharing protects vendor names/)).toBeInTheDocument()
+    expect(screen.getByText(/Sanitised mode hides names and exact dates/)).toBeInTheDocument()
     expect(loadPortrait).toHaveBeenLastCalledWith({ action: 'share', mode: 'sanitised' })
   })
 
@@ -67,7 +95,7 @@ describe('Spending habits page', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Try again' }))
     await screen.findByText('Coffee every weekday')
     expect(loadPortrait).toHaveBeenCalledTimes(3)
-    expect(loadPortrait).toHaveBeenLastCalledWith({ action: 'refresh' })
+    expect(loadPortrait).toHaveBeenLastCalledWith({ action: 'load' })
   })
 
   it('explains when there is no spending history', async () => {
