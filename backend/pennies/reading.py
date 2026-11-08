@@ -80,7 +80,10 @@ def set_sharing_mode(db: Session, user_sub: str, mode: str) -> str:
     return preference.mode
 
 
-def assigned_category(reader, facts: dict) -> tuple[str, str | None]:
+def assigned_category(reader, facts: dict, cache: dict | None = None) -> tuple[str, str | None]:
+    key = (facts.get("vendor"), facts.get("note"), facts.get("amount"))
+    if cache is not None and key in cache:
+        return cache[key], GEMINI
     try:
         category = reader.categorise(facts)
     except Exception:
@@ -88,7 +91,9 @@ def assigned_category(reader, facts: dict) -> tuple[str, str | None]:
     if not isinstance(category, str) or category not in ORDINARY_CATEGORIES:
         if category is None:
             return OTHER, None
-        return OTHER, GEMINI
+        category = OTHER
+    if cache is not None:
+        cache[key] = category
     return category, GEMINI
 
 

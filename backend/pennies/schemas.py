@@ -52,12 +52,31 @@ class AccountOut(ApiModel):
     calculated_balance: Money
 
 
+def _optional_money(value):
+    if value is None:
+        return None
+    return parse_money(value)
+
+
+OptionalMoney = Annotated[Decimal | None, BeforeValidator(_optional_money)]
+
+
 class TransactionIn(ApiModel):
     account_id: UUID
     amount: Money
     vendor: RequiredText = Field(max_length=120)
     note: OptionalText = None
     occurred_at: datetime
+
+
+class CategorySuggestionIn(ApiModel):
+    vendor: RequiredText = Field(max_length=120)
+    note: OptionalText = None
+    amount: OptionalMoney = None
+
+
+class CategorySuggestionOut(ApiModel):
+    category: str
 
 
 class TransactionPatch(ApiModel):

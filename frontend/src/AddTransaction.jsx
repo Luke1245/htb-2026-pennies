@@ -1,7 +1,35 @@
 import { useEffect, useRef, useState } from 'react'
 import { apiUrl, authHeaders } from './api.js'
-import { londonDate, transactionBody, validationMessage } from './transactionForm.js'
+import {
+  amountMessage,
+  londonDate,
+  signedAmount,
+  transactionBody,
+  validationMessage,
+} from './transactionForm.js'
 import { fetchVendorNames, matchingVendors } from './vendorSearch.js'
+
+const CATEGORIES = [
+  'Groceries',
+  'Transport',
+  'Eating out',
+  'Entertainment',
+  'Income',
+  'Other',
+]
+const CATEGORY_DELAY_MS = 400
+
+function categoryRequest(vendor, note, amount, direction) {
+  const vendorName = vendor.trim()
+  const noteText = note.trim()
+  const amountReady =
+    (direction === 'inflow' || direction === 'outflow') && !amountMessage(amount)
+  return {
+    vendor: vendorName,
+    note: noteText || null,
+    ...(amountReady ? { amount: signedAmount(amount, direction) } : {}),
+  }
+}
 
 export function AddTransaction({
   accounts,
@@ -18,6 +46,7 @@ export function AddTransaction({
   const [amount, setAmount] = useState('')
   const [vendor, setVendor] = useState('')
   const [note, setNote] = useState('')
+  const [category, setCategory] = useState({ key: '', name: '' })
   const [when, setWhen] = useState(() => londonDate(clock()))
   const [problem, setProblem] = useState('')
   const [sending, setSending] = useState(false)
@@ -42,6 +71,38 @@ export function AddTransaction({
       cancelled = true
     }
   }, [getAccessTokenSilently])
+
+  const categoryKey = JSON.stringify(categoryRequest(vendor, note, amount, direction))
+  const selectedCategory =
+    vendor.trim().length >= 2 && category.key === categoryKey ? category.name : ''
+
+  useEffect(() => {
+    const request = categoryRequest(vendor, note, amount, direction)
+    if (request.vendor.length < 2) return undefined
+    const key = JSON.stringify(request)
+    let cancelled = false
+    const timer = setTimeout(async () => {
+      try {
+        const headers = await authHeaders(getAccessTokenSilently)
+        const response = await fetch(`${apiUrl}/category-suggestions`, {
+          method: 'POST',
+          headers: { ...headers, 'Content-Type': 'application/json' },
+          body: JSON.stringify(request),
+        })
+        if (!response.ok) throw new Error('Pennies could not choose a category')
+        const body = await response.json()
+        if (!cancelled && CATEGORIES.includes(body.category)) {
+          setCategory({ key, name: body.category })
+        }
+      } catch {
+        if (!cancelled) setCategory({ key, name: '' })
+      }
+    }, CATEGORY_DELAY_MS)
+    return () => {
+      cancelled = true
+      clearTimeout(timer)
+    }
+  }, [vendor, note, amount, direction, getAccessTokenSilently])
 
   function chooseVendor(name) {
     setVendor(name)
@@ -200,8 +261,13 @@ export function AddTransaction({
             />
           </svg>
         </span>
-        <select disabled defaultValue="">
+        <select disabled value={selectedCategory} onChange={() => {}}>
           <option value="" />
+          {CATEGORIES.map((name) => (
+            <option key={name} value={name}>
+              {name}
+            </option>
+          ))}
         </select>
       </label>
       <label>

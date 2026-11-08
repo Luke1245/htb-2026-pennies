@@ -12,6 +12,7 @@ from pennies.errors import DomainError
 from pennies.budgets import get_budget, set_budget
 from pennies.calendar import YearMonth
 from pennies.dashboard import dashboard
+from pennies.money import money_str
 from pennies.ledger import (
     NewAccount,
     NewTransaction,
@@ -50,6 +51,8 @@ from pennies.schemas import (
     DashboardOut,
     ReconciliationIn,
     ReconciliationOut,
+    CategorySuggestionIn,
+    CategorySuggestionOut,
     TransactionIn,
     TransactionOut,
     TransactionPage,
@@ -90,6 +93,7 @@ def create_app(database_url: str | None = None, clock=None, reader=None) -> Fast
     app = FastAPI(title="Pennies")
     app.state.clock = clock or (lambda: datetime.now(timezone.utc))
     app.state.reader = reader
+    app.state.category_cache = {}
     app.state.get_current_user = get_current_user
     origins = settings.cors_origin_list()
     app.add_middleware(
@@ -133,6 +137,7 @@ def create_app(database_url: str | None = None, clock=None, reader=None) -> Fast
         category, source = assigned_category(
             request.app.state.reader,
             transaction_facts(body.vendor, body.amount, body.note, body.occurred_at),
+            request.app.state.category_cache,
         )
         return create_transaction(
             db,
@@ -147,6 +152,22 @@ def create_app(database_url: str | None = None, clock=None, reader=None) -> Fast
             ),
             source,
         )
+
+    @app.post("/category-suggestions", response_model=CategorySuggestionOut)
+    def post_category_suggestion(
+        body: CategorySuggestionIn,
+        request: Request,
+        _user_sub: str = Depends(get_current_user),
+    ):
+        facts = {"vendor": body.vendor, "note": body.note}
+        if body.amount is not None:
+            facts["amount"] = money_str(body.amount)
+        category, _source = assigned_category(
+            request.app.state.reader,
+            facts,
+            request.app.state.category_cache,
+        )
+        return {"category": category}
 
     @app.get("/transactions", response_model=TransactionPage)
     def get_transactions(

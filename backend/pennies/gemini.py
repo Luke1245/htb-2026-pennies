@@ -88,6 +88,8 @@ class GeminiReader:
         prompt = (
             "Assign one Pennies category to this ordinary transaction. "
             f"Choose only from: {', '.join(ORDINARY_CATEGORIES)}. "
+            "Decide from the vendor and the note. "
+            "Use the amount only to tell money received from money spent. "
             "Use Income for money received. Use Other when none of the spending categories fit. "
             f"Transaction: {json.dumps(facts)}"
         )
