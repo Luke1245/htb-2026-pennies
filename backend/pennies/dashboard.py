@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 
 from pennies.budgets import get_budget
 from pennies.calendar import YearMonth, month_bounds
+from pennies.ledger import list_accounts
 from pennies.models import Subscription, Transaction
 
 
@@ -37,7 +38,10 @@ def dashboard(db: Session, user_sub: str, now: datetime) -> dict:
     subscription_total = sum((item.amount for item in subscriptions), Decimal("0.00"))
     spent += subscription_total
     budget = get_budget(db, user_sub, month)
-    left = budget.amount - spent if budget is not None else Decimal("0.00")
+    if budget is not None:
+        left = budget.amount - spent
+    else:
+        left = sum((balance for _account, balance in list_accounts(db, user_sub)), Decimal("0.00"))
     return {
         "spent_this_month": spent,
         "left_to_spend": left,

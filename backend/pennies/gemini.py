@@ -6,15 +6,6 @@ import httpx
 from pennies.categories import ORDINARY_CATEGORIES
 from pennies.reading import EducationDraft, ReadingDraft, RecommendationDraft, SuggestionDraft
 
-_CATEGORY_SCHEMA = {
-    "type": "OBJECT",
-    "properties": {
-        "category": {"type": "STRING", "enum": list(ORDINARY_CATEGORIES)},
-    },
-    "required": ["category"],
-    "propertyOrdering": ["category"],
-}
-
 _READING_SCHEMA = {
     "type": "OBJECT",
     "properties": {
@@ -107,16 +98,24 @@ class GeminiReader:
         self.model = model
 
     def categorise(self, facts: dict) -> str | None:
+        choices = list(facts.get("categories") or ORDINARY_CATEGORIES)
+        shown = {key: value for key, value in facts.items() if key != "categories"}
         prompt = (
             "Assign one Pennies category to this ordinary transaction. "
-            f"Choose only from: {', '.join(ORDINARY_CATEGORIES)}. "
+            f"Choose only from: {', '.join(choices)}. "
             "Decide from the vendor and the note. "
             "Use the amount only to tell money received from money spent. "
             "Use Income for money received. Use Other when none of the spending categories fit. "
-            f"Transaction: {json.dumps(facts)}"
+            f"Transaction: {json.dumps(shown)}"
         )
+        schema = {
+            "type": "OBJECT",
+            "properties": {"category": {"type": "STRING", "enum": choices}},
+            "required": ["category"],
+            "propertyOrdering": ["category"],
+        }
         try:
-            body = self._generate(prompt, _CATEGORY_SCHEMA, temperature=0)
+            body = self._generate(prompt, schema, temperature=0)
         except (httpx.HTTPError, KeyError, IndexError, json.JSONDecodeError, TypeError):
             return None
         category = body.get("category") if isinstance(body, dict) else None

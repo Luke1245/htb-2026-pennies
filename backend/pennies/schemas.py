@@ -69,6 +69,20 @@ def _optional_money(value):
 OptionalMoney = Annotated[Decimal | None, BeforeValidator(_optional_money)]
 
 
+class CategoryIn(ApiModel):
+    name: RequiredText = Field(max_length=40)
+
+
+class CategoryOut(ApiModel):
+    id: UUID
+    name: str
+
+
+class AccountPatch(ApiModel):
+    name: RequiredText = Field(max_length=80)
+    opening_balance: OptionalMoney = None
+
+
 class TransactionIn(ApiModel):
     account_id: UUID
     amount: Money

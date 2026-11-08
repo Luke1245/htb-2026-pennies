@@ -292,6 +292,98 @@ def test_display_name_is_stored_for_the_signed_in_user():
     assert client.get("/me").json() == {"display_name": "Ada"}
 
 
+def test_opening_balance_is_money_available_when_there_is_no_budget():
+    from tests.test_reading import FakeReader
+
+    client, _holder = make_client(reader=FakeReader())
+    cash = account(client, "Cash", "40.00")
+    bank = account(client, "Bank", "10.00")
+    assert client.get("/dashboard").json()["left_to_spend"] == "50.00"
+    recorded = client.post(
+        "/transactions",
+        json={
+            "account_id": cash["id"],
+            "amount": "-6.00",
+            "vendor": "Tesco",
+            "occurred_at": "2026-11-02T10:00:00+00:00",
+        },
+    )
+    assert recorded.status_code == 200, recorded.text
+    dashboard = client.get("/dashboard").json()
+    assert dashboard["spent_this_month"] == "6.00"
+    assert dashboard["left_to_spend"] == "44.00"
+    assert dashboard["monthly_budget"] is None
+
+
+def test_renaming_a_category_does_not_change_recorded_transactions():
+    from tests.test_reading import FakeReader
+
+    client, _holder = make_client(reader=FakeReader())
+    cash = account(client)
+    recorded = client.post(
+        "/transactions",
+        json={
+            "account_id": cash["id"],
+            "amount": "-6.00",
+            "vendor": "Tesco",
+            "occurred_at": "2026-11-02T10:00:00+00:00",
+        },
+    )
+    assert recorded.json()["category"] == "Groceries"
+    categories = client.get("/categories").json()
+    groceries = next(item for item in categories if item["name"] == "Groceries")
+    renamed = client.patch(f"/categories/{groceries['id']}", json={"name": "Food"})
+    assert renamed.status_code == 200, renamed.text
+    assert renamed.json()["name"] == "Food"
+    added = client.post("/categories", json={"name": "Clothes"})
+    assert added.status_code == 200, added.text
+    names = [item["name"] for item in client.get("/categories").json()]
+    assert "Food" in names
+    assert "Clothes" in names
+    assert "Groceries" not in names
+    assert client.get("/transactions").json()["transactions"][0]["category"] == "Groceries"
+
+
+def test_an_account_name_and_opening_balance_can_be_edited():
+    from tests.test_reading import FakeReader
+
+    client, holder = make_client(reader=FakeReader())
+    created = account(client, "Cash", "10.00")
+    recorded = client.post(
+        "/transactions",
+        json={
+            "account_id": created["id"],
+            "amount": "-4.00",
+            "vendor": "Shop",
+            "occurred_at": "2026-11-02T10:00:00+00:00",
+        },
+    )
+    assert recorded.status_code == 200, recorded.text
+
+    edited = client.patch(
+        f"/accounts/{created['id']}",
+        json={"name": "Bank", "opening_balance": "25.00"},
+    )
+    assert edited.status_code == 200, edited.text
+    assert edited.json()["name"] == "Bank"
+    assert edited.json()["opening_balance"] == "25.00"
+    assert edited.json()["calculated_balance"] == "21.00"
+    assert client.get("/accounts").json()[0]["name"] == "Bank"
+
+    blank = client.patch(
+        f"/accounts/{created['id']}",
+        json={"name": "  ", "opening_balance": "25.00"},
+    )
+    assert blank.status_code == 422
+
+    holder["sub"] = "user-b"
+    missing = client.patch(
+        f"/accounts/{created['id']}",
+        json={"name": "Theirs", "opening_balance": "1.00"},
+    )
+    assert missing.status_code == 404
+
+
 def test_database_url_must_be_postgres():
     with pytest.raises(RuntimeError):
         Settings(database_url="").required_database_url()

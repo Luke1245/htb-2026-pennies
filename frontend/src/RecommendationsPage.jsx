@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useAuth0 } from '@auth0/auth0-react'
+import { Link } from 'react-router'
 import { apiUrl, authHeaders } from './api.js'
 import { guides } from './guides.js'
 import './spending-habits.css'
@@ -127,9 +128,14 @@ export default function RecommendationsPage({ loadRecommendations, onBack, onOpe
     <div className="habits-page">
       <header className="banner">
         <h1>Pennies</h1>
-        <button type="button" className="logout" onClick={onLogout}>
-          Log out
-        </button>
+        <div className="banner-actions">
+          <Link to="/accounts" className="logout">
+            Accounts
+          </Link>
+          <button type="button" className="logout" onClick={onLogout}>
+            Log out
+          </button>
+        </div>
       </header>
       <main className="habits-main">
         <button type="button" className="back-link" onClick={onBack}>

@@ -44,6 +44,21 @@ class ReconciliationRequest:
     occurred_at: datetime
 
 
+def update_account(
+    db: Session,
+    user_sub: str,
+    account_id: uuid.UUID,
+    name: str,
+    opening_balance: Decimal | None = None,
+) -> tuple[Account, Decimal]:
+    account = owned_account(db, user_sub, account_id)
+    account.name = name
+    if opening_balance is not None:
+        account.opening_balance = opening_balance
+    db.flush()
+    return account, calculated_balance(db, account)
+
+
 def create_account(db: Session, user_sub: str, command: NewAccount) -> Account:
     account = Account(
         user_sub=user_sub,
@@ -82,7 +97,8 @@ def create_transaction(
     account = owned_account(db, user_sub, command.account_id)
     if command.amount == 0:
         raise DomainError("Amount must not be zero")
-    require_ordinary_category(command.category)
+    if command.category.casefold() == ADJUSTMENT_CATEGORY.casefold():
+        raise DomainError("Category must be one of the user's categories")
     transaction = Transaction(
         user_sub=user_sub,
         account_id=account.id,

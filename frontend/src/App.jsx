@@ -4,6 +4,7 @@ import { BrowserRouter, Navigate, Route, Routes, useNavigate } from 'react-route
 import './dashboard.css'
 import './App.css'
 import pennieRound from './assets/pennie_round.png'
+import AccountsPage from './AccountsPage.jsx'
 import Dashboard from './Dashboard.jsx'
 import { GuidePage } from './Guides.jsx'
 import RecommendationsPage from './RecommendationsPage.jsx'
@@ -187,6 +188,7 @@ function AuthedScreens() {
       {!displayName && <AboutYouDialog onSaved={setDisplayName} />}
       <Routes>
         <Route path="/" element={<Dashboard name={displayName || ''} />} />
+        <Route path="/accounts" element={<AccountsPage />} />
         <Route path="/spending-habits" element={<SpendingHabitsScreen />} />
         <Route path="/recommendations" element={<RecommendationsScreen />} />
         <Route path="/guides/:guideId" element={<GuidePage />} />
