@@ -1,11 +1,11 @@
 import { useEffect, useRef, useState } from 'react'
 import { useAuth0 } from '@auth0/auth0-react'
+import { Link, useNavigate } from 'react-router'
 import './dashboard.css'
 import { AddAccount } from './AddAccount.jsx'
 import { AddTransaction } from './AddTransaction.jsx'
 import { apiUrl, authHeaders } from './api.js'
-import { GuideCards, GuideView } from './Guides.jsx'
-import { useGuideRoute } from './useGuideRoute.js'
+import { GuideCards } from './Guides.jsx'
 import { guides } from './guides.js'
 
 const recordedMessage = 'Transaction recorded'
@@ -34,9 +34,9 @@ function whenLabel(occurredAt) {
   }).format(new Date(occurredAt))
 }
 
-export default function Dashboard({ name, onViewSpendingHabits, onViewRecommendations }) {
+export default function Dashboard({ name }) {
   const { logout, getAccessTokenSilently } = useAuth0()
-  const { selectedGuide, openGuide, closeGuide } = useGuideRoute()
+  const navigate = useNavigate()
   const [figures, setFigures] = useState(null)
   const [transactions, setTransactions] = useState([])
   const [status, setStatus] = useState('')
@@ -75,7 +75,10 @@ export default function Dashboard({ name, onViewSpendingHabits, onViewRecommenda
         if (!response.ok) throw new Error(loadMessage)
         const body = await response.json()
         const recommended = (body.reading?.recommendations || [])
-          .filter((recommendation) => recommendation.kind === 'guide')
+          .filter(
+            (recommendation) =>
+              recommendation.kind === 'guide' && recommendation.guide_id !== 'budgeting-basics',
+          )
           .map((recommendation) => recommendation.guide_id)
         if (!cancelled) setRecommendedGuideIds(recommended)
       } catch {
@@ -165,10 +168,6 @@ export default function Dashboard({ name, onViewSpendingHabits, onViewRecommenda
         </button>
       </header>
       <main className="dashboard-main">
-        {selectedGuide ? (
-          <GuideView guide={selectedGuide} onBack={closeGuide} />
-        ) : (
-          <>
             {name && <p className="greeting">Hi, {name}</p>}
             {status && <p className="status">{status}</p>}
             {!status && !figures && <p className="status">Loading…</p>}
@@ -216,16 +215,9 @@ export default function Dashboard({ name, onViewSpendingHabits, onViewRecommenda
                       )}
                     </ul>
                   )}
-                  <a
-                    href="#spending-habits"
-                    className="habits-link"
-                    onClick={(event) => {
-                      event.preventDefault()
-                      onViewSpendingHabits?.()
-                    }}
-                  >
+                  <Link to="/spending-habits" className="habits-link">
                     View spending habits <span aria-hidden="true">→</span>
-                  </a>
+                  </Link>
                 </section>
                 <section className="tile">
                   {!formOpen && !accountFormOpen && (
@@ -281,27 +273,14 @@ export default function Dashboard({ name, onViewSpendingHabits, onViewRecommenda
                 </section>
               </div>
             )}
-            <a
-              href="#recommendations"
-              className="recommendations-link"
-              onClick={(event) => {
-                event.preventDefault()
-                onViewRecommendations?.()
-              }}
-            >
+            <Link to="/recommendations" className="recommendations-link">
               See what Pennies recommends for you <span aria-hidden="true">→</span>
-            </a>
+            </Link>
             <GuideCards
               guides={guides}
               recommendedIds={recommendedGuideIds}
-              onSelect={(guide) => {
-                setFormOpen(false)
-                setAccountFormOpen(false)
-                openGuide(guide)
-              }}
+              onSelect={(guide) => navigate(`/guides/${guide.id}`)}
             />
-          </>
-        )}
       </main>
     </div>
   )

@@ -63,7 +63,6 @@ describe('App', () => {
 
   it('opens Recommendations from the dashboard and a Guide pick opens the guide', async () => {
     const user = userEvent.setup()
-    window.location.hash = ''
     const fetchMock = vi.fn(async (url) => {
       const path = String(url)
       if (path.endsWith('/me')) return json({ display_name: 'Alex' })
@@ -84,6 +83,6 @@ describe('App', () => {
     await user.click(screen.getByRole('button', { name: /read guide/i }))
 
     expect(await screen.findByRole('heading', { name: 'Budgeting basics', level: 1 })).toBeInTheDocument()
-    expect(window.location.hash).toBe('#guide/budgeting-basics')
+    expect(window.location.pathname).toBe('/guides/budgeting-basics')
   })
 })

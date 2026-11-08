@@ -1,11 +1,13 @@
 import { useEffect, useRef, useState } from 'react'
 import { useAuth0 } from '@auth0/auth0-react'
+import { BrowserRouter, Navigate, Route, Routes, useNavigate } from 'react-router'
 import './dashboard.css'
 import './App.css'
 import pennie from './assets/pennie.png'
 import Dashboard from './Dashboard.jsx'
-import SpendingHabitsPage from './SpendingHabitsPage.jsx'
+import { GuidePage } from './Guides.jsx'
 import RecommendationsPage from './RecommendationsPage.jsx'
+import SpendingHabitsPage from './SpendingHabitsPage.jsx'
 import { apiUrl, authHeaders } from './api.js'
 import { firstNameError } from './displayName.js'
 
@@ -122,11 +124,31 @@ function AboutYouDialog({ onSaved }) {
   )
 }
 
-function Home() {
+function SpendingHabitsScreen() {
+  const navigate = useNavigate()
+  const { logout } = useAuth0()
+  return (
+    <SpendingHabitsPage
+      onBack={() => navigate('/')}
+      onLogout={() => logout({ logoutParams: { returnTo: window.location.origin } })}
+    />
+  )
+}
+
+function RecommendationsScreen() {
+  const navigate = useNavigate()
+  const { logout } = useAuth0()
+  return (
+    <RecommendationsPage
+      onBack={() => navigate('/')}
+      onOpenGuide={(guide) => navigate(`/guides/${guide.id}`)}
+      onLogout={() => logout({ logoutParams: { returnTo: window.location.origin } })}
+    />
+  )
+}
+
+function AuthedScreens() {
   const { logout, getAccessTokenSilently } = useAuth0()
-  const [page, setPage] = useState('dashboard')
-  const [hasOpenedHabits, setHasOpenedHabits] = useState(false)
-  const [hasOpenedRecommendations, setHasOpenedRecommendations] = useState(false)
   const [displayName, setDisplayName] = useState(undefined)
 
   useEffect(() => {
@@ -160,50 +182,16 @@ function Home() {
     )
   }
 
-  const openHabits = () => {
-    setHasOpenedHabits(true)
-    setPage('spending-habits')
-  }
-
-  const openRecommendations = () => {
-    setHasOpenedRecommendations(true)
-    setPage('recommendations')
-  }
-
-  const openGuideFromRecommendations = (guide) => {
-    window.location.hash = `#guide/${guide.id}`
-    setPage('dashboard')
-  }
-
   return (
     <>
       {!displayName && <AboutYouDialog onSaved={setDisplayName} />}
-      <div hidden={page !== 'dashboard'}>
-        <Dashboard
-          name={displayName || ''}
-          onViewSpendingHabits={openHabits}
-          onViewRecommendations={openRecommendations}
-        />
-      </div>
-      {hasOpenedHabits && (
-        <div hidden={page !== 'spending-habits'}>
-          <SpendingHabitsPage
-            isActive={page === 'spending-habits'}
-            onBack={() => setPage('dashboard')}
-            onLogout={signOut}
-          />
-        </div>
-      )}
-      {hasOpenedRecommendations && (
-        <div hidden={page !== 'recommendations'}>
-          <RecommendationsPage
-            isActive={page === 'recommendations'}
-            onBack={() => setPage('dashboard')}
-            onOpenGuide={openGuideFromRecommendations}
-            onLogout={signOut}
-          />
-        </div>
-      )}
+      <Routes>
+        <Route path="/" element={<Dashboard name={displayName || ''} />} />
+        <Route path="/spending-habits" element={<SpendingHabitsScreen />} />
+        <Route path="/recommendations" element={<RecommendationsScreen />} />
+        <Route path="/guides/:guideId" element={<GuidePage />} />
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
     </>
   )
 }
@@ -211,16 +199,20 @@ function Home() {
 function App() {
   const { isLoading, isAuthenticated, error } = useAuth0()
 
+  let screen
   if (isLoading) {
-    return (
+    screen = (
       <PenniesShell>
         <p className="status">Loading…</p>
       </PenniesShell>
     )
+  } else if (!isAuthenticated) {
+    screen = <Welcome error={error} />
+  } else {
+    screen = <AuthedScreens />
   }
 
-  if (!isAuthenticated) return <Welcome error={error} />
-  return <Home />
+  return <BrowserRouter>{screen}</BrowserRouter>
 }
 
 export default App
