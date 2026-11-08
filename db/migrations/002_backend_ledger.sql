@@ -11,6 +11,10 @@
 -- Tables created here mirror Base.metadata in backend/pennies/models.py
 -- exactly: names, columns, types, nullability, uniqueness, and indexes.
 -- The backend declares no foreign keys, so none are added here.
+-- CREATEs are IF NOT EXISTS because a live database may already hold these
+-- tables: the backend's ensure_schema() runs Base.metadata.create_all on
+-- startup. Where that happened, this migration is a no-op and existing data
+-- is preserved; on a fresh database it builds the full schema.
 
 -- Tear down the 001 schema.
 DROP TRIGGER IF EXISTS users_delete_transactions ON users;
@@ -24,17 +28,17 @@ DROP TABLE IF EXISTS account;
 DROP TABLE IF EXISTS users;
 
 -- Accounts: a user-owned place money is held, with its opening balance.
-CREATE TABLE accounts (
+CREATE TABLE IF NOT EXISTS accounts (
   id UUID PRIMARY KEY,
   user_sub VARCHAR(128) NOT NULL,
   name VARCHAR(80) NOT NULL,
   opening_balance NUMERIC(14, 2) NOT NULL
 );
 
-CREATE INDEX ix_accounts_user_sub ON accounts (user_sub);
+CREATE INDEX IF NOT EXISTS ix_accounts_user_sub ON accounts (user_sub);
 
 -- Transactions: signed movements of money, including transfer and adjustment kinds.
-CREATE TABLE transactions (
+CREATE TABLE IF NOT EXISTS transactions (
   id UUID PRIMARY KEY,
   user_sub VARCHAR(128) NOT NULL,
   account_id UUID NOT NULL,
@@ -48,12 +52,12 @@ CREATE TABLE transactions (
   category_source VARCHAR(20)
 );
 
-CREATE INDEX ix_transactions_user_sub ON transactions (user_sub);
-CREATE INDEX ix_transactions_account_id ON transactions (account_id);
-CREATE INDEX ix_transactions_occurred_at ON transactions (occurred_at);
+CREATE INDEX IF NOT EXISTS ix_transactions_user_sub ON transactions (user_sub);
+CREATE INDEX IF NOT EXISTS ix_transactions_account_id ON transactions (account_id);
+CREATE INDEX IF NOT EXISTS ix_transactions_occurred_at ON transactions (occurred_at);
 
 -- Monthly budgets: one spending limit per user per calendar month.
-CREATE TABLE monthly_budgets (
+CREATE TABLE IF NOT EXISTS monthly_budgets (
   id UUID PRIMARY KEY,
   user_sub VARCHAR(128) NOT NULL,
   year INTEGER NOT NULL,
@@ -62,10 +66,10 @@ CREATE TABLE monthly_budgets (
   CONSTRAINT monthly_budgets_user_sub_year_month_key UNIQUE (user_sub, year, month)
 );
 
-CREATE INDEX ix_monthly_budgets_user_sub ON monthly_budgets (user_sub);
+CREATE INDEX IF NOT EXISTS ix_monthly_budgets_user_sub ON monthly_budgets (user_sub);
 
 -- Subscriptions: monthly outflows logged apart from ordinary transactions.
-CREATE TABLE subscriptions (
+CREATE TABLE IF NOT EXISTS subscriptions (
   id UUID PRIMARY KEY,
   user_sub VARCHAR(128) NOT NULL,
   name VARCHAR(120) NOT NULL,
@@ -74,34 +78,34 @@ CREATE TABLE subscriptions (
   month INTEGER NOT NULL
 );
 
-CREATE INDEX ix_subscriptions_user_sub ON subscriptions (user_sub);
+CREATE INDEX IF NOT EXISTS ix_subscriptions_user_sub ON subscriptions (user_sub);
 
 -- Sharing preferences: the user's AI sharing mode (raw or sanitised).
-CREATE TABLE sharing_preferences (
+CREATE TABLE IF NOT EXISTS sharing_preferences (
   user_sub VARCHAR(128) PRIMARY KEY,
   mode VARCHAR(20) NOT NULL
 );
 
 -- Financial portraits and their derived content.
-CREATE TABLE portraits (
+CREATE TABLE IF NOT EXISTS portraits (
   id UUID PRIMARY KEY,
   user_sub VARCHAR(128) NOT NULL UNIQUE,
   sharing_mode VARCHAR(20) NOT NULL,
   reading TEXT NOT NULL
 );
 
-CREATE INDEX ix_portraits_user_sub ON portraits (user_sub);
+CREATE INDEX IF NOT EXISTS ix_portraits_user_sub ON portraits (user_sub);
 
-CREATE TABLE habits (
+CREATE TABLE IF NOT EXISTS habits (
   id UUID PRIMARY KEY,
   portrait_id UUID NOT NULL,
   kind VARCHAR(20) NOT NULL,
   description TEXT NOT NULL
 );
 
-CREATE INDEX ix_habits_portrait_id ON habits (portrait_id);
+CREATE INDEX IF NOT EXISTS ix_habits_portrait_id ON habits (portrait_id);
 
-CREATE TABLE educations (
+CREATE TABLE IF NOT EXISTS educations (
   id UUID PRIMARY KEY,
   portrait_id UUID NOT NULL,
   subject VARCHAR(160) NOT NULL,
@@ -109,19 +113,19 @@ CREATE TABLE educations (
   body TEXT NOT NULL
 );
 
-CREATE INDEX ix_educations_portrait_id ON educations (portrait_id);
+CREATE INDEX IF NOT EXISTS ix_educations_portrait_id ON educations (portrait_id);
 
-CREATE TABLE suggestions (
+CREATE TABLE IF NOT EXISTS suggestions (
   id UUID PRIMARY KEY,
   portrait_id UUID NOT NULL,
   education_id UUID NOT NULL,
   body TEXT NOT NULL
 );
 
-CREATE INDEX ix_suggestions_portrait_id ON suggestions (portrait_id);
-CREATE INDEX ix_suggestions_education_id ON suggestions (education_id);
+CREATE INDEX IF NOT EXISTS ix_suggestions_portrait_id ON suggestions (portrait_id);
+CREATE INDEX IF NOT EXISTS ix_suggestions_education_id ON suggestions (education_id);
 
-CREATE TABLE recommendations (
+CREATE TABLE IF NOT EXISTS recommendations (
   id UUID PRIMARY KEY,
   portrait_id UUID NOT NULL,
   position INTEGER NOT NULL,
@@ -131,4 +135,4 @@ CREATE TABLE recommendations (
   reason TEXT NOT NULL
 );
 
-CREATE INDEX ix_recommendations_portrait_id ON recommendations (portrait_id);
+CREATE INDEX IF NOT EXISTS ix_recommendations_portrait_id ON recommendations (portrait_id);
