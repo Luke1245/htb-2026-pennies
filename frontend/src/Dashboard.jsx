@@ -63,6 +63,7 @@ export default function Dashboard({ name }) {
   const [transactions, setTransactions] = useState([])
   const [accountNames, setAccountNames] = useState({})
   const [status, setStatus] = useState('')
+  const [accountAlert, setAccountAlert] = useState('')
   const [accounts, setAccounts] = useState([])
   const [formOpen, setFormOpen] = useState(false)
   const [transferFormOpen, setTransferFormOpen] = useState(false)
@@ -169,17 +170,19 @@ export default function Dashboard({ name }) {
       const response = await fetch(`${apiUrl}/accounts`, { headers })
       if (!response.ok) throw new Error(loadMessage)
       const list = await response.json()
-      if (list.length === 0) {
-        setFormOpen(false)
-        setStatus('An Account is needed.')
-        return
-      }
+    if (list.length === 0) {
+      setFormOpen(false)
+      setAccountAlert('You need an account before you can add a transaction.')
+      return
+    }
       recordedLabel.current = ''
       setAccounts(list)
+      setAccountAlert('')
       setStatus('')
       setFormOpen(true)
     } catch {
       setFormOpen(false)
+      setAccountAlert('')
       setStatus(loadMessage)
     }
   }
@@ -366,6 +369,11 @@ export default function Dashboard({ name }) {
                         </button>
                       </div>
                     </div>
+                  )}
+                  {accountAlert && (
+                    <p className="tile-alert" role="alert">
+                      {accountAlert}
+                    </p>
                   )}
                   {transferFormOpen && (
                     <AddTransfer

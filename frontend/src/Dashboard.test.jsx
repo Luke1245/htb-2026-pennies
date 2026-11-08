@@ -336,7 +336,9 @@ test('an Account is required before the form opens', async () => {
 
   await user.click(await screen.findByRole('button', { name: 'Add transaction' }))
 
-  expect(screen.getByText('An Account is needed.')).toBeInTheDocument()
+  expect(
+    screen.getByRole('alert'),
+  ).toHaveTextContent('You need an account before you can add a transaction.')
   expect(screen.queryByRole('button', { name: 'Add account' })).not.toBeInTheDocument()
   expect(screen.queryByLabelText('Vendor')).not.toBeInTheDocument()
 })
