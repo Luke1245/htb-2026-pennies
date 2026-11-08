@@ -78,6 +78,10 @@ _Avoid_: Suggestion, pick
 **Subscription**:
 A monthly outflow the user logs apart from ordinary Transactions for one Calendar month: a name and a positive amount, with no Category. It counts towards Spent this month for that month, is part of the Financial portrait, and can shape Suggestions.
 
+**Display name**:
+The first name an account owner enters after signing in. It is stored on that user and shown in the home-screen greeting.
+_Avoid_: Nickname, username
+
 **Raw sharing**:
 The default AI sharing mode. It includes each transaction's vendor or payee, amount, category, date, and note, each logged Subscription's name, amount, and Calendar month, plus Account names and calculated balances.
 
