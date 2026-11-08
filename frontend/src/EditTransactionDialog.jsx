@@ -204,7 +204,7 @@ export function EditTransactionDialog({
             {problem}
           </p>
         )}
-        <div className="dialog-actions">
+        <div className="form-actions">
           <button type="submit" disabled={sending}>
             {sending ? 'Saving…' : 'Save changes'}
           </button>
