@@ -179,14 +179,14 @@ export default function Dashboard() {
                   )}
                 </section>
                 <section className="tile">
-                  <div className="tile-heading">
-                    <h2>Recent transactions</h2>
-                    {!formOpen && (
+                  {!formOpen && (
+                    <div className="tile-heading">
+                      <h2>Recent transactions</h2>
                       <button type="button" className="add-transaction" onClick={openForm}>
                         Add transaction
                       </button>
-                    )}
-                  </div>
+                    </div>
+                  )}
                   {formOpen && (
                     <AddTransaction
                       accounts={accounts}

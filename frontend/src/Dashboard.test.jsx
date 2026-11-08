@@ -279,9 +279,11 @@ test('Cancel closes the form without recording', async () => {
   })
 
   await user.click(await screen.findByRole('button', { name: 'Add transaction' }))
+  expect(screen.queryByRole('heading', { name: 'Recent transactions' })).not.toBeInTheDocument()
   await user.type(screen.getByLabelText('Vendor'), 'Pret')
   await user.click(screen.getByRole('button', { name: 'Cancel' }))
 
+  expect(screen.getByRole('heading', { name: 'Recent transactions' })).toBeInTheDocument()
   expect(screen.queryByLabelText('Vendor')).not.toBeInTheDocument()
   expect(calls.some((call) => call.options.method === 'POST')).toBe(false)
   await user.click(screen.getByRole('button', { name: 'Add transaction' }))
