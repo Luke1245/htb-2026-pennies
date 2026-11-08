@@ -358,6 +358,7 @@ test('user transfers money between two Accounts without counting it as spending'
             : [
                 {
                   id: 'tx-out',
+                  account_id: 'cash',
                   vendor: null,
                   category: 'Other',
                   kind: 'transfer',
@@ -366,6 +367,7 @@ test('user transfers money between two Accounts without counting it as spending'
                 },
                 {
                   id: 'tx-in',
+                  account_id: 'bank',
                   vendor: null,
                   category: 'Other',
                   kind: 'transfer',
@@ -389,6 +391,8 @@ test('user transfers money between two Accounts without counting it as spending'
 
   expect(await screen.findByText('Transfer recorded')).toBeInTheDocument()
   expect(screen.getAllByRole('button', { name: 'Delete Transfer' })).toHaveLength(2)
+  expect(screen.getByText('Cash · 3 Nov')).toBeInTheDocument()
+  expect(screen.getByText('Bank · 3 Nov')).toBeInTheDocument()
   expect(screen.getByText('-£20.00')).toBeInTheDocument()
   expect(screen.getByText('+£20.00')).toBeInTheDocument()
   expect(screen.getAllByText('£18.40')).toHaveLength(2)
@@ -567,10 +571,12 @@ test('recent transactions shows three entries and opens the transactions screen'
           subscriptions: '0.00',
         })
       }
+      if (path.endsWith('/accounts')) return json([{ id: 'acc-1', name: 'Monzo' }])
       if (path.includes('/transactions')) {
         return json({
           transactions: ['Tesco', 'Pret', 'Cafe', 'Old shop'].map((vendor, index) => ({
             id: `tx-${index}`,
+            account_id: 'acc-1',
             vendor,
             category: 'Groceries',
             occurred_at: '2026-11-08T00:00:00+00:00',
@@ -585,6 +591,7 @@ test('recent transactions shows three entries and opens the transactions screen'
   const router = renderAt('/')
 
   expect(await screen.findByText('Tesco')).toBeInTheDocument()
+  expect(screen.getAllByText('Monzo · Groceries · 8 Nov')).toHaveLength(3)
   expect(screen.getByText('Pret')).toBeInTheDocument()
   expect(screen.getByText('Cafe')).toBeInTheDocument()
   expect(screen.queryByText('Old shop')).not.toBeInTheDocument()

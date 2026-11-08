@@ -6,7 +6,7 @@ import { AddAccount } from './AddAccount.jsx'
 import { AddTransaction } from './AddTransaction.jsx'
 import { AddTransfer } from './AddTransfer.jsx'
 import { apiUrl, authHeaders } from './api.js'
-import { movementName } from './movementName.js'
+import { accountNamesById, movementName, transactionDetail } from './movementName.js'
 import { GuideCards } from './Guides.jsx'
 import { guides } from './guides.js'
 
@@ -42,6 +42,7 @@ export default function Dashboard({ name }) {
   const navigate = useNavigate()
   const [figures, setFigures] = useState(null)
   const [transactions, setTransactions] = useState([])
+  const [accountNames, setAccountNames] = useState({})
   const [status, setStatus] = useState('')
   const [accounts, setAccounts] = useState([])
   const [formOpen, setFormOpen] = useState(false)
@@ -58,18 +59,21 @@ export default function Dashboard({ name }) {
 
     async function load() {
       const headers = await authHeaders(getAccessTokenSilently)
-      const [dashboardResponse, transactionResponse] = await Promise.all([
+      const [dashboardResponse, transactionResponse, accountResponse] = await Promise.all([
         fetch(`${apiUrl}/dashboard`, { headers }),
         fetch(`${apiUrl}/transactions?limit=3`, { headers }),
+        fetch(`${apiUrl}/accounts`, { headers }),
       ])
       if (!dashboardResponse.ok || !transactionResponse.ok) {
         throw new Error(loadMessage)
       }
       const dashboard = await dashboardResponse.json()
       const page = await transactionResponse.json()
+      const names = accountResponse.ok ? accountNamesById(await accountResponse.json()) : {}
       if (!cancelled) {
         setFigures(dashboard)
         setTransactions(page.transactions)
+        setAccountNames(names)
       }
     }
 
@@ -343,8 +347,11 @@ export default function Dashboard({ name }) {
                           <span>
                             {movementName(transaction)}
                             <small>
-                              {transaction.vendor ? `${transaction.category} · ` : ''}
-                              {whenLabel(transaction.occurred_at)}
+                              {transactionDetail(
+                                transaction,
+                                accountNames[transaction.account_id],
+                                whenLabel(transaction.occurred_at),
+                              )}
                             </small>
                           </span>
                           <span>{signedPounds(transaction.amount)}</span>

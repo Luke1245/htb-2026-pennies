@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useAuth0 } from '@auth0/auth0-react'
 import { Link, useNavigate } from 'react-router'
 import { apiUrl, authHeaders } from './api.js'
-import { movementName } from './movementName.js'
+import { accountNamesById, movementName, transactionDetail } from './movementName.js'
 
 function pounds(value) {
   const amount = Number(value)
@@ -35,6 +35,7 @@ export default function TransactionsPage() {
     tokenProvider.current = getAccessTokenSilently
   }, [getAccessTokenSilently])
   const [transactions, setTransactions] = useState([])
+  const [accountNames, setAccountNames] = useState({})
   const [status, setStatus] = useState('loading')
   const [problem, setProblem] = useState('')
   const [deletingId, setDeletingId] = useState('')
@@ -43,6 +44,7 @@ export default function TransactionsPage() {
     let cancelled = false
     async function load() {
       const headers = await authHeaders(tokenProvider.current)
+      const accountResponse = fetch(`${apiUrl}/accounts`, { headers })
       const collected = []
       const seenOffsets = new Set()
       let offset = 0
@@ -55,7 +57,10 @@ export default function TransactionsPage() {
         if (page.next_offset == null) break
         offset = page.next_offset
       }
+      const accounts = await accountResponse
+      const names = accounts.ok ? accountNamesById(await accounts.json()) : {}
       if (!cancelled) {
+        setAccountNames(names)
         setTransactions(collected)
         setStatus('ready')
       }
@@ -129,8 +134,11 @@ export default function TransactionsPage() {
               <span>
                 {movementName(transaction)}
                 <small>
-                  {transaction.vendor ? `${transaction.category} · ` : ''}
-                  {whenLabel(transaction.occurred_at)}
+                  {transactionDetail(
+                    transaction,
+                    accountNames[transaction.account_id],
+                    whenLabel(transaction.occurred_at),
+                  )}
                 </small>
               </span>
               <span>{signedPounds(transaction.amount)}</span>
