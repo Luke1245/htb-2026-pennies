@@ -25,7 +25,7 @@ describe('Spending habits page', () => {
     expect(screen.getByText('You spend more on eating out at weekends.')).toBeInTheDocument()
     expect(screen.getByText(/weekend spending averaged £24/)).toBeInTheDocument()
     expect(screen.getByText('Last month')).toBeInTheDocument()
-    expect(screen.getByText('Updated just now')).toBeInTheDocument()
+    expect(screen.getByText(/^Updated at /)).toBeInTheDocument()
   })
 
   it('labels tentative patterns as emerging habits', async () => {
@@ -56,7 +56,9 @@ describe('Spending habits page', () => {
 
   it('dismisses a habit and its similar patterns temporarily, with an undo option', async () => {
     const user = userEvent.setup()
-    const generateHabits = vi.fn().mockResolvedValue({ habits })
+    const generateHabits = vi.fn().mockResolvedValue({
+      habits: [habits[0], { ...habits[0], id: 'similar-weekend', title: 'Similar weekend spending' }],
+    })
     render(<SpendingHabitsPage generateHabits={generateHabits} onBack={() => {}} />)
 
     await screen.findByRole('heading', { name: 'Weekend treats' })
@@ -64,10 +66,12 @@ describe('Spending habits page', () => {
     await user.click(screen.getByRole('button', { name: 'Hide for a week' }))
 
     expect(screen.queryByRole('heading', { name: 'Weekend treats' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: 'Similar weekend spending' })).not.toBeInTheDocument()
     expect(screen.getByText(/Similar habits will be hidden for a week/)).toBeInTheDocument()
 
     await user.click(screen.getByRole('button', { name: 'Undo' }))
     expect(screen.getByRole('heading', { name: 'Weekend treats' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Similar weekend spending' })).toBeInTheDocument()
   })
 
   it('warns before changing sharing mode, removes locked habits, and keeps dismissals active', async () => {

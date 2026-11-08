@@ -46,6 +46,7 @@ function App() {
       {hasOpenedHabits && (
         <div hidden={page !== 'spending-habits'}>
           <SpendingHabitsPage
+            isActive={page === 'spending-habits'}
             onBack={() => setPage('dashboard')}
             onLogout={() => logout({ logoutParams: { returnTo: window.location.origin } })}
           />

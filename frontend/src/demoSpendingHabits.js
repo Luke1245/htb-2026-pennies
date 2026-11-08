@@ -26,9 +26,20 @@ const rawHabits = [
   },
 ]
 
-const sanitisedHabits = rawHabits.map((habit) => ({
+const neutralHabit = {
+  id: 'regular-spending-rhythm',
+  patternKey: 'regular-spending-rhythm',
+  title: 'Your spending has a regular rhythm',
+  explanation: 'Your spending looks fairly spread out across the month, with no single Category standing out.',
+  evidence: 'The monthly amounts and Categories shared with Pennies support this pattern.',
+  period: 'This month',
+}
+
+const sanitisedHabits = [neutralHabit, ...rawHabits.slice(1)].map((habit) => ({
   ...habit,
-  evidence: habit.emerging
+  evidence: habit.id === neutralHabit.id
+    ? habit.evidence
+    : habit.emerging
     ? 'A small amount of recent category data suggests a change. More history will make this clearer.'
     : `Your ${habit.patternKey === 'weekend-eating-out' ? 'eating-out' : 'grocery'} amounts support this pattern across ${habit.period.toLowerCase()}.`,
 }))

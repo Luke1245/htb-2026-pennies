@@ -1,8 +1,14 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { generateDemoHabits } from './demoSpendingHabits.js'
 import './spending-habits.css'
 
-export default function SpendingHabitsPage({ generateHabits = generateDemoHabits, onBack, onLogout }) {
+function isDismissed(habit, dismissals) {
+  return dismissals.some((item) =>
+    item.patternKey === habit.patternKey && (item.until === null || item.until > Date.now()),
+  )
+}
+
+export default function SpendingHabitsPage({ generateHabits = generateDemoHabits, onBack, onLogout, isActive = true }) {
   const [habits, setHabits] = useState([])
   const [status, setStatus] = useState('loading')
   const [dismissMenu, setDismissMenu] = useState(null)
@@ -12,6 +18,8 @@ export default function SpendingHabitsPage({ generateHabits = generateDemoHabits
   const [pendingSharingMode, setPendingSharingMode] = useState(null)
   const [error, setError] = useState(false)
   const [emptyReason, setEmptyReason] = useState(null)
+  const [lastUpdated, setLastUpdated] = useState(null)
+  const wasActive = useRef(isActive)
 
   useEffect(() => {
     if (!lastDismissal) return
@@ -21,16 +29,16 @@ export default function SpendingHabitsPage({ generateHabits = generateDemoHabits
 
   const dismissHabit = (duration) => {
     const habit = habits.find((item) => item.id === dismissMenu)
-    setHabits((current) => current.filter((item) => item.id !== dismissMenu))
+    setHabits((current) => current.filter((item) => item.patternKey !== habit.patternKey))
     const until = duration === 'forever' ? null : Date.now() + (duration === 'week' ? 7 : 30) * 24 * 60 * 60 * 1000
-    setLastDismissal({ habit, duration })
+    setLastDismissal({ habits: habits.filter((item) => item.patternKey === habit.patternKey), duration })
     setDismissals((current) => [...current, { patternKey: habit.patternKey, until }])
     setDismissMenu(null)
   }
 
   const undoDismissal = () => {
-    setHabits((current) => [...current, lastDismissal.habit])
-    setDismissals((current) => current.filter((item) => item.patternKey !== lastDismissal.habit.patternKey))
+    setHabits((current) => [...current, ...lastDismissal.habits])
+    setDismissals((current) => current.filter((item) => item.patternKey !== lastDismissal.habits[0].patternKey))
     setLastDismissal(null)
   }
 
@@ -44,8 +52,9 @@ export default function SpendingHabitsPage({ generateHabits = generateDemoHabits
     const result = await generateHabits({ sharingMode: nextMode })
     setError(false)
     setEmptyReason(result.reason)
+    setLastUpdated(new Date())
     setHabits(result.habits.filter((habit) =>
-      !dismissals.some((item) => item.patternKey === habit.patternKey && (item.until === null || item.until > Date.now())),
+      !isDismissed(habit, dismissals),
     ).slice(0, 3))
     } catch {
       setError(true)
@@ -62,11 +71,19 @@ export default function SpendingHabitsPage({ generateHabits = generateDemoHabits
   }
 
   useEffect(() => {
+    if (isActive && !wasActive.current) {
+      window.dispatchEvent(new Event('pennies:transactions-changed'))
+    }
+    wasActive.current = isActive
+  }, [isActive])
+
+  useEffect(() => {
     let active = true
     generateHabits({ sharingMode: 'raw' }).then((result) => {
       if (!active) return
       setHabits(result.habits.slice(0, 3))
       setEmptyReason(result.reason)
+      setLastUpdated(new Date())
       setStatus('ready')
     }).catch(() => {
       if (!active) return
@@ -84,11 +101,12 @@ export default function SpendingHabitsPage({ generateHabits = generateDemoHabits
       try {
       const result = await generateHabits({ sharingMode })
       setEmptyReason(result.reason)
+      setLastUpdated(new Date())
       setHabits((current) => {
         const lockedPatterns = new Set(current.filter((habit) => habit.locked).map((habit) => habit.patternKey))
         const available = result.habits.filter((habit) =>
           !lockedPatterns.has(habit.patternKey)
-          && !dismissals.some((item) => item.patternKey === habit.patternKey && (item.until === null || item.until > Date.now())),
+          && !isDismissed(habit, dismissals),
         )
         let nextIndex = 0
         const merged = current.map((habit) => habit.locked ? habit : available[nextIndex++]).filter(Boolean)
@@ -128,7 +146,11 @@ export default function SpendingHabitsPage({ generateHabits = generateDemoHabits
           <p>Little patterns in your spending, explained in plain English.</p>
         </div>
         {status === 'loading' && <p role="status">Finding your spending habits…</p>}
-        {status === 'ready' && !error && <p className="updated-at">Updated just now</p>}
+        {status === 'ready' && !error && lastUpdated && (
+          <p className="updated-at">
+            Updated at {lastUpdated.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}
+          </p>
+        )}
         {error && (
           <div className="error-message" role="alert">
             <p>We couldn’t update your habits. {habits.length > 0 ? 'Your existing habits are still here.' : 'Please try again.'}</p>
